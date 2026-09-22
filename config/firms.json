@@ -1,0 +1,25 @@
+{
+  "window_days": 91,
+  "firms": [
+    {"ticker": "NVDA",  "name": "Nvidia",             "match": "nvidia|nvda|jensen huang"},
+    {"ticker": "AAPL",  "name": "Apple",              "match": "\\bapple\\b|iphone|tim cook|aapl"},
+    {"ticker": "MSFT",  "name": "Microsoft",          "match": "microsoft|msft|satya nadella|azure"},
+    {"ticker": "GOOGL", "name": "Alphabet",           "match": "alphabet|google|googl|sundar pichai|youtube"},
+    {"ticker": "AMZN",  "name": "Amazon",             "match": "amazon|amzn|andy jassy|\\baws\\b"},
+    {"ticker": "META",  "name": "Meta",               "match": "\\bmeta\\b|facebook|instagram|zuckerberg"},
+    {"ticker": "AVGO",  "name": "Broadcom",           "match": "broadcom|avgo|hock tan"},
+    {"ticker": "TSLA",  "name": "Tesla",              "match": "tesla|tsla|elon musk"},
+    {"ticker": "AMD",   "name": "AMD",                "match": "\\bamd\\b|advanced micro|lisa su"},
+    {"ticker": "INTC",  "name": "Intel",              "match": "\\bintel\\b|intc|lip-bu tan"},
+    {"ticker": "TSM",   "name": "TSMC",               "match": "tsmc|taiwan semiconductor|\\btsm\\b"},
+    {"ticker": "JPM",   "name": "JPMorgan",           "match": "jpmorgan|jp morgan|\\bjpm\\b|jamie dimon"},
+    {"ticker": "LLY",   "name": "Eli Lilly",          "match": "eli lilly|\\blilly\\b|\\blly\\b|mounjaro|zepbound"},
+    {"ticker": "WMT",   "name": "Walmart",            "match": "walmart|\\bwmt\\b"},
+    {"ticker": "BRK.B", "name": "Berkshire Hathaway", "match": "berkshire|buffett|greg abel"},
+    {"ticker": "ORCL",  "name": "Oracle",             "match": "oracle|orcl|larry ellison"},
+    {"ticker": "CRM",   "name": "Salesforce",         "match": "salesforce|\\bcrm\\b|benioff"},
+    {"ticker": "NFLX",  "name": "Netflix",            "match": "netflix|nflx"},
+    {"ticker": "BA",    "name": "Boeing",             "match": "boeing"},
+    {"ticker": "XOM",   "name": "ExxonMobil",         "match": "exxon|\\bxom\\b"}
+  ]
+}

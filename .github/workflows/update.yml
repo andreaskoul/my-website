@@ -1,0 +1,82 @@
+name: update
+
+on:
+  schedule:
+    - cron: "15 6 * * *"          # daily 06:15 UTC; stories are refit on Mondays
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Days of news to fetch (2 = daily, 91 = full backfill)"
+        default: "2"
+      refit:
+        description: "Refit the stories now"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install (CPU-only torch keeps this small)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Restore embedding + model caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/cache
+            ~/.cache/huggingface
+          key: emb-${{ github.run_id }}
+          restore-keys: emb-
+
+      - name: Fetch news
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: python pipeline/fetch.py --days "${{ inputs.days || '2' }}"
+
+      - name: Build stories
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ "${{ inputs.refit }}" = "true" ] || [ "$(date -u +%u)" = "1" ]; then
+            python pipeline/build.py --refit
+          else
+            python pipeline/build.py
+          fi
+
+      - name: Commit data
+        run: |
+          git config user.name "narratives-bot"
+          git config user.email "narratives-bot@users.noreply.github.com"
+          git add data/raw data/state site/data
+          git diff --cached --quiet || git commit -m "data: $(date -u +'%Y-%m-%d %H:%M')" && git push
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
