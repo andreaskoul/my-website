@@ -34,20 +34,20 @@ cd site && python -m http.server           # open http://localhost:8000/#NVDA
 ## Setup still to do
 
 1. Create a **public** GitHub repo `narratives` (public = unlimited Actions minutes) and push this folder.
-2. Repo secrets: `FINNHUB_API_KEY`, `POLYGON_API_KEY` (required), `OPENROUTER_API_KEY` (optional, see Naming).
-   Repo variables (Settings → Secrets and variables → Actions → Variables): `OPENROUTER_MODEL` (the naming
-   LLM; unset = keyword names) and `EMBED_MODEL` (unset = thenlper/gte-small; `openrouter:<model id>` uses
-   OpenRouter's embeddings API). Changing `EMBED_MODEL` refits every firm from scratch: centroids from two
-   models are not comparable, so the hand-written names are not carried over.
+2. Repo secrets: `FINNHUB_API_KEY`, `POLYGON_API_KEY`, `OPENROUTER_API_KEY` (all required; OpenRouter
+   serves both the embeddings and the story names). Optional repo variables (Settings → Secrets and
+   variables → Actions → Variables): `OPENROUTER_MODEL` (the naming LLM; unset = anthropic/claude-sonnet-5)
+   and `EMBED_MODEL` (unset = openrouter:google/gemini-embedding-2; a plain id such as thenlper/gte-small
+   runs locally). Changing `EMBED_MODEL` refits every firm from scratch: centroids from two models are not
+   comparable, so story names are not carried over.
    **The user pasted Finnhub, Polygon and OpenRouter keys into a chat during design — they must be
    rotated before being stored as secrets.**
 3. Settings → Pages → Source: **GitHub Actions**.
 4. Actions → `update` → Run workflow (days=2, refit=**false**). data/raw already holds the
-   13-week backfill (to 2026-09-22) and data/state holds the fitted, hand-named stories — a
-   refit now would keep names via identity matching but is unnecessary. The first run has no
-   embedding cache, so it embeds ~41k texts (gte-small on a 4-core CPU managed ~2,000 texts per 9 min in a
-   test container, i.e. ~3 h for the lot; the job timeout is 150 min — check the first run); later runs only embed
-   the day's new articles. Check the deployed page, then the next scheduled run.
+   13-week backfill (to 2026-09-22) and data/state holds stories fitted with gemini-embedding-2 and
+   named by Claude Sonnet 5 — a refit now is unnecessary. The first run has no embedding cache, so it
+   embeds ~41k texts through OpenRouter (~1 min at 32 requests in flight, ~$0.40); later runs only
+   embed the day's new articles. Check the deployed page, then the next scheduled run.
 5. Expected daily runtime after that: ~5-8 min (Polygon's 5 calls/min dominates fetching).
 
 ## Decisions (and why)
@@ -66,11 +66,20 @@ hidden; resolving those redirects is the main open data improvement.
 (twice), tags, zero-width chars, space-before-punctuation. Near-duplicate rewrites (cos > .95)
 are collapsed after embedding.
 
-**Embedding: thenlper/gte-small (384-d, local, free).** Best of 8 local models on clean English
-firm headlines (bge/gte base models at 3x the size scored lower). Paid models (Qwen3-8B, Gemini,
-OpenAI, Voyage via OpenRouter) were only benchmarked on the earlier broken corpus below, so
-whether one beats gte-small on clean text is untested — worth one run if cost allows. Two traps
-found on the way:
+**Embedding: google/gemini-embedding-2 via OpenRouter (3072-d, ~$0.20 per million tokens).** Chosen
+2026-09-23 by rebuilding NVDA end to end (relevance, story fit, names, map) with three models and
+inspecting the maps (site/mockups/NVDA-*.html, embedding-comparison.png):
+- thenlper/gte-small (the earlier default, best of 8 local models): 5 broad themes, all on topic, but
+  four of them overlap in meaning — only SpaceX separates.
+- gemini-embedding-2: 9 stories, all about Nvidia or its orbit, and finer (memory boom vs SK Hynix-style
+  volatility; stock outlook vs ecosystem deals). Adopted.
+- qwen3-embedding-8b: 11 stories, but 3 were genre (Buffett advice, Vanguard ETFs, dividend picks —
+  ~2,000 articles) that passed both lift tests. Rejected.
+OpenRouter limits, measured: Gemini takes at most 100 texts per request (Google's cap; larger batches get
+HTTP 400); throughput plateaus at ~900 texts/s from ~32 requests in flight (100+ in flight is no faster);
+Google returns an occasional 429 under load, which the retries absorb. The key itself has no rate limit.
+The near-duplicate cut (cos > .95) is model-specific: under Gemini it collapses fewer rewrites than
+under gte-small (NVDA keeps ~575 more articles). Two traps found earlier:
 (1) an earlier benchmark ran English-only models on a 96%-non-English corpus — its conclusions
 are void; (2) an instruction prefix ("represent this headline for grouping by narrative")
 looked like a win on that broken corpus and *hurt* on the clean one.
@@ -84,8 +93,9 @@ implementation forgot to subtract the mean and made anisotropy *rise* — fixed,
 thin windows was unstable (ARI 0.4–0.5) and its K grew with n (no canonical K — Kleinberg's
 impossibility showing up empirically). Fitting once on the quarter and soft-assigning each week
 gives ARI 0.94 at K=6 for NVDA. Evolution = each story's weekly share, a time series. K per
-firm = finest K with resampling ARI ≥ 0.85 (in the committed fit most firms sit at the floor, K=4,
-because their relevant sets are a few hundred articles; NVDA and AAPL 5, META and AVGO 5, AMD 7). Single linkage was also tried and rejected: it
+firm = finest K with resampling ARI ≥ 0.85 (in the committed Gemini fit most firms sit at the floor, K=4,
+because their relevant sets are a few hundred articles; NVDA, AAPL, MSFT and LLY 6, META and AVGO 5; plus
+21 emerging stories across firms, 111 stories in all). Single linkage was also tried and rejected: it
 chains into one giant cluster on real news embeddings (its high "stability" was the
 stability of a degenerate partition — stability must never be read without cluster balance).
 
@@ -108,10 +118,10 @@ content breadth (effective number of feeds); correlation with firm-neighbourhood
 **Identity across refits.** Weekly refits match new stories to old ones (Hungarian on centroid
 cosine, threshold 0.5); matches keep id/name/colour/history. Only new stories get named.
 
-**Names in the committed state were written by hand** (standing in for the LLM pass,
-from each story's representative headlines) for all 88 stories. They are kept across refits by
-the identity matching. **Naming.** New stories are named by the OpenRouter model in `OPENROUTER_MODEL` when it and
-`OPENROUTER_API_KEY` are set, else keyword fallback. (The old default, a `:free` Llama 3.3 variant, no longer exists.)
+**Naming.** New stories are named by the OpenRouter model in `OPENROUTER_MODEL` (default
+anthropic/claude-sonnet-5) from their 10 most typical headlines; keyword fallback when no key is set.
+Names are kept across refits by the identity matching. (The hand-written names of the gte-small fit were
+dropped with the switch to Gemini: the committed state was refit and LLM-named on 2026-09-23.)
 
 **Emerging stories (build.py step 6, every run).** Between Monday refits the fitted stories are fixed, so
 each run also looks for new ones: the firm's last 14 days minus what the fitted stories explain (further
@@ -144,10 +154,12 @@ Red marks the selected story and positive momentum. Keep it that way.
 
 ## Open questions / next steps
 
-0. **Genre leakage** (known, visible on the site): 7 of 88 stories are generic content that
-   passed both lift tests because that firm's feed carries more of it than average — daily
-   market wraps (AAPL, AMD, INTC) and ETF/dividend picks (AAPL, BRK.B, XOM). They are named
-   honestly ("Daily market wraps"). A third test is needed; untested idea: genre is uniformly
+0. **Genre leakage** (known, visible on the site): 8 of 111 stories in the Gemini fit are generic
+   content that passed both lift tests because that firm's feed carries more of it than average —
+   ETF pieces (NVDA "Vanguard ETF Investing", AAPL, LLY, TSM, BRK.B) and market roundups (CRM "Dow
+   Jones Daily Movers", INTC "Tech Stocks Roundup") and one emerging story (NVDA "Bitcoin & Crypto Market
+   Trends"). The fit is also sensitive to the window: NVDA
+   refit 16 hours apart kept 3 vs 4 of 8 anchors, and only the later fit has the Vanguard story. A third test is needed; untested idea: genre is uniformly
    present in nearly every feed while a theme concentrates in a few.
 
 1. Rank a story's articles by how *typical* they are (current) or how *new* — newness surfaces
@@ -159,7 +171,7 @@ Red marks the selected story and positive momentum. Keep it that way.
    its own follow-ups (slow-kernel Hawkes) — replaces the failed κ tests.
 5. Phase 2: SSTorytime knowledge graph + RAG chatbot under the chart. Needs a server; out of
    scope for the static site.
-6. Countries: parked (news is multilingual; gte-small is English-only).
+6. Countries: parked (news is multilingual; the relevance regexes and names are English-only).
 
 ## Conventions
 

@@ -12,6 +12,6 @@ typical headline each week tells the story in its own words.
 
 **Running it.** A GitHub Actions workflow (`.github/workflows/update.yml`) fetches, rebuilds and
 deploys to GitHub Pages every day at 06:15 UTC and refits the stories on Mondays. Needs repo
-secrets `FINNHUB_API_KEY` and `POLYGON_API_KEY` (free tiers); `OPENROUTER_API_KEY` is optional
-and only used to name new stories;
-the naming model and the embedding model are set with repo variables `OPENROUTER_MODEL` and `EMBED_MODEL`. See `DESIGN.md` for the full design record.
+secrets `FINNHUB_API_KEY` and `POLYGON_API_KEY` (free tiers) and `OPENROUTER_API_KEY` (embeddings with
+Google's gemini-embedding-2 and story names with Claude Sonnet 5, both through OpenRouter; cents per day);
+either model can be changed with repo variables `OPENROUTER_MODEL` and `EMBED_MODEL`. See `DESIGN.md` for the full design record.

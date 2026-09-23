@@ -5,8 +5,8 @@
 
 Per firm, in order:
   1. clean + de-duplicate (exact headline across sources, then near-duplicate rewrites, cos > .95)
-  2. embed headline + summary with EMBED_MODEL (default gte-small, local; "openrouter:<id>" calls the
-     OpenRouter embeddings API), cached by text hash, one cache per model. Stories fitted with another
+  2. embed headline + summary with EMBED_MODEL (default openrouter:google/gemini-embedding-2 via the
+     OpenRouter embeddings API; a plain model id such as thenlper/gte-small runs locally), cached by text hash, one cache per model. Stories fitted with another
      model are refit from scratch, since centroids from two models are not comparable.
   3. RELEVANCE, judged per group, never per article (one passing mention is noise, a group is not).
      Each firm gets K1 coarse anchors; an anchor is kept only if it passes BOTH tests
@@ -51,9 +51,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG = json.load(open(f"{ROOT}/config/firms.json"))
 K1, BETA, STABLE, NEARDUP, MATCH = 8, 20.0, 0.85, 0.95, 0.5
 EMERGE_DAYS, MIN_EMERGE, OUT_Q, MAX_LIVE = 14, 10, 0.10, 3
-EMBED = os.environ.get("EMBED_MODEL") or "thenlper/gte-small"     # the committed state was fitted with gte-small
+EMBED = os.environ.get("EMBED_MODEL") or "openrouter:google/gemini-embedding-2"   # the committed state was fitted with this
 OR_KEY = os.environ.get("OPENROUTER_API_KEY")
-OR_MODEL = os.environ.get("OPENROUTER_MODEL") or ""
+OR_MODEL = os.environ.get("OPENROUTER_MODEL") or "anthropic/claude-sonnet-5"      # names new stories
 now = datetime.now(timezone.utc)
 start = now - timedelta(days=CFG["window_days"])
 week_cut = now - timedelta(days=7)
@@ -100,7 +100,7 @@ def embed(texts):
     if EMBED.startswith("openrouter:"):
         from concurrent.futures import ThreadPoolExecutor
         def batch(i):
-            for attempt in range(6):
+            for attempt in range(8):
                 try:
                     req = urllib.request.Request("https://openrouter.ai/api/v1/embeddings",
                         data=json.dumps({"model": EMBED.split(":", 1)[1], "input": texts[i:i + 100]}).encode(),
@@ -108,9 +108,10 @@ def embed(texts):
                     d = json.loads(urllib.request.urlopen(req, timeout=120).read())["data"]
                     return [x["embedding"] for x in sorted(d, key=lambda x: x["index"])]
                 except Exception as e:
-                    if attempt == 5: raise SystemExit(f"OpenRouter embeddings failed: {e}")
-                    time.sleep(5 * (attempt + 1))
-        with ThreadPoolExecutor(8) as ex:                         # 8 requests in flight: several times faster than one at a time
+                    if attempt == 7: raise SystemExit(f"OpenRouter embeddings failed: {e}")
+                    time.sleep(3 * (attempt + 1))                  # Google answers 429 now and then under load
+        with ThreadPoolExecutor(32) as ex:                        # Gemini takes at most 100 texts per request; throughput
+                                                                  # tops out near 32 requests in flight (~900 texts/s)
             out = [v for b in ex.map(batch, range(0, len(texts), 100)) for v in b]
         return unit(np.array(out, dtype=np.float32))
     if st_model is None:
@@ -118,11 +119,11 @@ def embed(texts):
         st_model = SentenceTransformer(EMBED)
     return st_model.encode(texts, normalize_embeddings=True, batch_size=128, show_progress_bar=False)
 keys = list(todo)
-for i in range(0, len(keys), 2000):                            # save as we go: a first run embeds ~40k texts
-    for k, v in zip(keys[i:i + 2000], embed([todo[k] for k in keys[i:i + 2000]])): cache[k] = v.astype(np.float16)
+for i in range(0, len(keys), 8000):                            # save as we go: a first run embeds ~40k texts
+    for k, v in zip(keys[i:i + 8000], embed([todo[k] for k in keys[i:i + 8000]])): cache[k] = v.astype(np.float16)
     ks = [k for k in cache if k in live]
     np.savez(cp, h=np.array(ks), V=np.array([cache[k] for k in ks]))
-    print(f"embedded {min(i + 2000, len(keys))}/{len(keys)}", flush=True)
+    print(f"embedded {min(i + 8000, len(keys))}/{len(keys)}", flush=True)
 print(f"embedded {len(todo)} new texts with {EMBED}, cache {len(cache)}", flush=True)
 DIM = len(next(iter(cache.values()))) if cache else 384
 
