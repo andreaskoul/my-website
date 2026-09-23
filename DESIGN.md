@@ -17,7 +17,7 @@ pipeline/fetch.py          Finnhub + Polygon -> data/raw/<TICKER>.jsonl (append,
 pipeline/build.py          raw -> stories -> site/data/<TICKER>.json (+ index.json)
 data/raw/                  committed; ~13 weeks per firm
 data/state/<TICKER>.json   committed; the fitted story model per firm (centroids, names, ids)
-data/cache/emb.npz         NOT committed; embedding cache, kept in actions/cache
+data/cache/emb-<model>.npz NOT committed; embedding cache per model, kept in actions/cache
 site/index.html            the whole frontend (vanilla JS, no build step)
 .github/workflows/update.yml   daily at 06:15 UTC; refits stories on Mondays; manual run with days=91 = backfill
 ```
@@ -35,13 +35,18 @@ cd site && python -m http.server           # open http://localhost:8000/#NVDA
 
 1. Create a **public** GitHub repo `narratives` (public = unlimited Actions minutes) and push this folder.
 2. Repo secrets: `FINNHUB_API_KEY`, `POLYGON_API_KEY` (required), `OPENROUTER_API_KEY` (optional, see Naming).
+   Repo variables (Settings → Secrets and variables → Actions → Variables): `OPENROUTER_MODEL` (the naming
+   LLM; unset = keyword names) and `EMBED_MODEL` (unset = thenlper/gte-small; `openrouter:<model id>` uses
+   OpenRouter's embeddings API). Changing `EMBED_MODEL` refits every firm from scratch: centroids from two
+   models are not comparable, so the hand-written names are not carried over.
    **The user pasted Finnhub, Polygon and OpenRouter keys into a chat during design — they must be
    rotated before being stored as secrets.**
 3. Settings → Pages → Source: **GitHub Actions**.
 4. Actions → `update` → Run workflow (days=2, refit=**false**). data/raw already holds the
    13-week backfill (to 2026-09-22) and data/state holds the fitted, hand-named stories — a
    refit now would keep names via identity matching but is unnecessary. The first run has no
-   embedding cache, so it embeds ~41k texts (~15 min on a GitHub runner); later runs only embed
+   embedding cache, so it embeds ~41k texts (gte-small on a 4-core CPU managed ~2,000 texts per 9 min in a
+   test container, i.e. ~3 h for the lot; the job timeout is 150 min — check the first run); later runs only embed
    the day's new articles. Check the deployed page, then the next scheduled run.
 5. Expected daily runtime after that: ~5-8 min (Polygon's 5 calls/min dominates fetching).
 
@@ -105,8 +110,19 @@ cosine, threshold 0.5); matches keep id/name/colour/history. Only new stories ge
 
 **Names in the committed state were written by hand** (standing in for the LLM pass,
 from each story's representative headlines) for all 88 stories. They are kept across refits by
-the identity matching. **Naming.** New stories are named by a free OpenRouter model (`OPENROUTER_MODEL`, default a `:free` Llama variant —
-verify it still exists) when `OPENROUTER_API_KEY` is set, else keyword fallback. 
+the identity matching. **Naming.** New stories are named by the OpenRouter model in `OPENROUTER_MODEL` when it and
+`OPENROUTER_API_KEY` are set, else keyword fallback. (The old default, a `:free` Llama 3.3 variant, no longer exists.)
+
+**Emerging stories (build.py step 6, every run).** Between Monday refits the fitted stories are fixed, so
+each run also looks for new ones: the firm's last 14 days minus what the fitted stories explain (further
+from every story than 90% of the firm's relevant articles, and not already claimed by an emerging story)
+is grouped by average linkage, cut at the typical fitted story's mean pairwise cosine. A group of 10+
+articles over 2+ days becomes a story if it passes name lift, feed lift (against the other feeds' same
+14 days) and a novelty test (far more common in those 14 days than in the weeks before). At most 3 live
+per firm. An emerging story claims every article within its radius, even one in a dropped coarse anchor.
+At the next refit it either matches a fitted story (and keeps its id and name) or is retired to
+`state.past`; retired stories that come back get their id and name back. **Crash-tested only** (a
+stand-in embedder, all paths: daily, refit, daily after refit): thresholds still need a real-data check.
 
 **Design (user's explicit spec):** dead simple — white background, black and red text only,
 browser-default fonts (Times New Roman, default monospace), no cards/shadows/rounded corners.

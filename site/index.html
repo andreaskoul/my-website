@@ -119,7 +119,7 @@ function render(){
     const isOpen = open.has(s.id);
     return `<div class="story ${s.id===sel?"sel":""}">
       <button class="row" data-id="${s.id}" aria-expanded="${isOpen}">
-        <span><span class="name">${esc(s.name)}</span><div class="blurb">${esc(s.blurb)}</div></span>
+        <span><span class="name">${esc(s.name)}</span>${s.new?`<span class="peak" title="A story that appeared in the last two weeks">NEW</span>`:""}<div class="blurb">${esc(s.blurb)}</div></span>
         <span class="num"><b>${s.latest_n}</b><span class="${pts>=1?"up":""}" title="Share of coverage last full week vs the four weeks before">${d}</span></span>
         ${spark(s)}
       </button>

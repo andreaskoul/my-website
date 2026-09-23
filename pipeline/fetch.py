@@ -24,6 +24,10 @@ firms = [f for f in CFG["firms"] if not args.only or f["ticker"] in args.only.sp
 
 def clean(t):
     t = html.unescape(html.unescape(t or ""))
+    if re.search("[\u00c2\u00c3\u00e2][\u0080-\u00bf\u20ac\u2122\u0153\u201c\u201d\u2018\u2019]", t):
+        for enc in ("cp1252", "latin-1"):                  # UTF-8 that was decoded as Latin-1 upstream ("Palantirâ€™s")
+            try: t = t.encode(enc).decode("utf-8"); break
+            except UnicodeError: pass
     t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"[​-‏﻿­]", "", t)
     t = re.sub(r"\s+([.,;:!?])", r"\1", t)

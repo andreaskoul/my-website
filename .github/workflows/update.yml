@@ -60,6 +60,8 @@ jobs:
       - name: Build stories
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}    # repo variable; unset = keyword names
+          EMBED_MODEL: ${{ vars.EMBED_MODEL }}              # repo variable; unset = thenlper/gte-small
         run: |
           if [ "${{ inputs.refit }}" = "true" ] || [ "$(date -u +%u)" = "1" ]; then
             python pipeline/build.py --refit
