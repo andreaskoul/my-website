@@ -87,7 +87,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const lab = w => { const [y,m,d] = w.split("-"); return mon[+m-1] + " " + (+d); };
-const W = 1000, H = 540, PAD = 60, NW = D.weeks.length;
+const W = 1000, H = D.mapH || 540, PAD = 60, NW = D.weeks.length;
 const px = x => PAD + x*(W-2*PAD), py = y => PAD*0.7 + y*(H-1.4*PAD);
 
 // ---- stories: position, momentum, share
@@ -101,7 +101,7 @@ const S = D.stories.map((s,k) => {
 });
 // story titles sit just above their region, then overlapping labels are pushed apart (in map pixels)
 S.forEach(s => { s.cx = s.cx ?? s.x; s.cy = s.cy ?? s.y; if (s.lx != null){ s.x = s.lx; s.y = s.ly; } });
-{ const B = S.map(s => { const fs = 14 + Math.sqrt(Math.max(...s.series.map(v => v.n), s.latest_n))*1.3;
+if (S.every(s => s.r == null)) { const B = S.map(s => { const fs = 14 + Math.sqrt(Math.max(...s.series.map(v => v.n), s.latest_n))*1.3;
     return {s, X: px(s.x), Y: py(s.y), w: s.name.length*fs*.5 + 16, h: fs + 34}; });
   for (let it = 0; it < 400; it++){ let moved = false;
     for (let i = 0; i < B.length; i++) for (let j = i+1; j < B.length; j++){
@@ -157,7 +157,7 @@ function drawDots(o){
   return g;
 }
 function drawEvents(o){
-  const boxes = S.map(s => { const fs = 14 + Math.sqrt(s.latest_n)*1.3, w = s.name.length*fs*.5; return [px(s.x)-w/2, py(s.y)-18-fs, w, fs+22]; });
+  const boxes = S.map(s => { const fs = 15 + Math.sqrt(s.latest_n)*.8, w = s.name.length*fs*.5; return [px(s.x)-w/2, py(s.y)-18-fs, w, fs+22]; });
   let g = "";
   for (const e of evOn(o.wk).slice(0, 12)){
     const t = e.name, w = t.length*6.1 + 40, X = px(e.x);
@@ -173,7 +173,7 @@ function drawEvents(o){
 function drawLabels(o){
   return S.map(s => {
     const n = o.wk===NW-1 ? s.latest_n : ((s.series[o.wk]||{n:0}).n);
-    const fs = 14 + Math.sqrt(n)*1.3, hot = o.hi===s.k;
+    const fs = 15 + Math.sqrt(n)*.8, hot = o.hi===s.k;
     return `<g class="lbl" data-k="${s.k}"><text x="${px(s.x)}" y="${py(s.y)-18}" text-anchor="middle" font-weight="bold" font-size="${fs.toFixed(1)}" ${hot?'fill="#c00000"':""}>${esc(s.name)}</text><text class="m" x="${px(s.x)}" y="${py(s.y)-18+14}" text-anchor="middle" ${s.delta*100>=1&&o.wk===NW-1?'fill="#c00000"':""}>${n} ${o.wk===NW-1?"this week · "+mom(s):"that week"}</text></g>`;
   }).join("");
 }

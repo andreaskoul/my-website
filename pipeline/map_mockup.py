@@ -4,10 +4,13 @@
   python pipeline/map_mockup.py NVDA            # -> site/mockups/NVDA.html (from site/mockups/template.html)
 
 Reproduces build.py's daily path for one firm (clean, de-duplicate, embed with the fitted model, relevance
-and story assignment from data/state), then projects the relevant articles with UMAP on the centred
-vectors (cosine), partly supervised by the story labels. The projection is fitted once on the whole window, so the replay shows where each
-week's articles fall on one fixed map. "now" is pinned to the fitted state's timestamp so the numbers
-match the committed site/data build.
+and story assignment from data/state), then:
+  - EVENTS: groups of articles that say the same thing within days (cosine x exp(-days apart / 6)), kept,
+    named and merged by one LLM call (OPENROUTER_MODEL, default anthropic/claude-sonnet-5; cached per group).
+  - LAYOUT: one region per story, placed near its MDS position on story-centroid distance, area by article
+    count, title reserved above it so no two regions or titles overlap; inside a region, UMAP of its articles.
+"now" is pinned to the fitted state's timestamp so the numbers match the committed site/data build.
+Run it in a checkout whose data/state was fitted with the model to compare (EMBED_MODEL=... build.py --refit).
 """
 import hashlib, json, os, re, sys, urllib.request
 from datetime import datetime, timedelta
@@ -127,20 +130,30 @@ print(f"events: {len(groups)} candidate groups, {len(events)} events after the L
 # ---- 2D: one region per story, placed by MDS on story-centroid distance, area proportional to article count,
 #      pushed apart until no two overlap; inside each region its own articles laid out by UMAP (cosine).
 #      Layout runs in the page's pixel space (map W x H) so regions stay round, then maps to [0,1].
-MW, MH, PADX, PADY = 1000, 540, 60, 42
+MW, PADX, PADY = 1000, 60, 42
+MH = 540 + 80 * max(0, len(stories) - 6)                         # more stories, taller map
 C = unit(np.array([X2[hard == k].mean(0) for k in range(len(stories))]))
 Dm = 1 - C @ C.T; n = len(C); J = np.eye(n) - 1 / n
 w, V = np.linalg.eigh(-0.5 * J @ (Dm ** 2) @ J); P = V[:, -2:] * np.sqrt(np.maximum(w[-2:], 1e-9))
 P = (P - P.mean(0)) / (np.abs(P).max() + 1e-9) * [(MW - 2 * PADX) / 2, (MH - 2 * PADY) / 2] + [MW / 2, MH / 2]
-cnt = np.bincount(hard, minlength=n); rad = np.sqrt(cnt / cnt.sum() * MW * MH * 0.30 / np.pi)       # regions fill ~30% of the map
-for it in range(2000):
-    moved = False
-    for a in range(n):
-        for b in range(a + 1, n):
-            d = P[b] - P[a]; dist = np.hypot(*d) + 1e-9; need = rad[a] + rad[b] + 56     # gutter for the titles
-            if dist < need: moved = True; P[a] -= d / dist * (need - dist) / 2; P[b] += d / dist * (need - dist) / 2
-    P = np.clip(P, rad[:, None] + [8, 44], [MW, MH] - rad[:, None] - 8)
-    if not moved: break
+cnt = np.bincount(hard, minlength=n); target = P.copy()
+# each story is a box: its region plus its title above (title size as the page draws it at the story's busiest week).
+# Largest story first, each takes the free spot nearest its MDS position; if one finds no room, all regions shrink.
+fs = np.array([15 + np.sqrt(max([v["n"] for v in s["series"]] + [s["latest_n"]])) * 0.8 for s in site["stories"]])
+tw = np.array([len(s["name"]) for s in site["stories"]]) * fs * 0.5
+gx, gy = np.meshgrid(np.arange(0, MW + 1, 8.0), np.arange(0, MH + 1, 8.0)); G = np.c_[gx.ravel(), gy.ravel()]
+for area in (0.26, 0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.06):
+    rad = np.sqrt(cnt / cnt.sum() * MW * MH * area / np.pi)
+    hw, top, bot = np.maximum(rad, tw / 2 + 6), rad + fs + 22, rad + 6      # half width, extent above / below centre
+    P, placed = np.zeros((n, 2)), []
+    for k in np.argsort(-cnt):
+        ok = (G[:, 0] - hw[k] >= 4) & (G[:, 0] + hw[k] <= MW - 4) & (G[:, 1] - top[k] >= 4) & (G[:, 1] + bot[k] <= MH - 4)
+        for j in placed:
+            ok &= (np.abs(G[:, 0] - P[j, 0]) >= hw[k] + hw[j] + 14) | (G[:, 1] - P[j, 1] >= bot[j] + top[k] + 10) | (P[j, 1] - G[:, 1] >= bot[k] + top[j] + 10)
+        if not ok.any(): break
+        c = G[ok]; P[k] = c[((c - target[k]) ** 2).sum(1).argmin()]; placed.append(k)
+    if len(placed) == n: break
+print(f"layout: map {MW}x{MH}, regions {area:.0%} of it, {len(placed)}/{n} placed")
 Y = np.zeros((len(R), 2))
 for k in range(n):
     m = np.where(hard == k)[0]
@@ -160,10 +173,10 @@ arts = [dict(k=int(hard[i]), e=int(ev_of[i]), t=R[i]["t"], d=R[i]["desc"][:170],
              x=round(float(tx(Y[i, 0])), 4), y=round(float(ty(Y[i, 1])), 4)) for i in order]
 links = [[i, j, round(float(C[i] @ C[j]), 2)] for i in range(n) for j in range(i + 1, n)]
 doc = {k: site[k] for k in ("name", "ticker", "weeks", "updated", "latest_from", "latest_to", "n_articles", "n_relevant")}
-doc["embed"] = EMBED
+doc["embed"] = EMBED; doc["mapH"] = MH
 doc["stories"] = [dict({k: s[k] for k in ("name", "blurb", "n", "latest_n", "series")},
                        cx=round(float(tx(P[k, 0])), 4), cy=round(float(ty(P[k, 1])), 4), r=round(float(rad[k]), 1),
-                       lx=round(float(tx(P[k, 0])), 4), ly=round(float(ty(P[k, 1] - rad[k] - 6)), 4)) for k, s in enumerate(site["stories"])]
+                       lx=round(float(tx(P[k, 0])), 4), ly=round(float(ty(P[k, 1] - rad[k] - 4)), 4)) for k, s in enumerate(site["stories"])]
 doc.update(arts=arts, links=links, events=events)
 tpl = open(f"{ROOT}/site/mockups/template.html").read()
 open(f"{ROOT}/site/mockups/{tk}.html", "w").write(tpl.replace("__DATA__", json.dumps(doc, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")))

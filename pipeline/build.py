@@ -98,18 +98,20 @@ st_model = None
 def embed(texts):
     global st_model
     if EMBED.startswith("openrouter:"):
-        out = []
-        for i in range(0, len(texts), 100):
-            for attempt in range(4):
+        from concurrent.futures import ThreadPoolExecutor
+        def batch(i):
+            for attempt in range(6):
                 try:
                     req = urllib.request.Request("https://openrouter.ai/api/v1/embeddings",
                         data=json.dumps({"model": EMBED.split(":", 1)[1], "input": texts[i:i + 100]}).encode(),
                         headers={"Authorization": f"Bearer {OR_KEY}", "Content-Type": "application/json"})
                     d = json.loads(urllib.request.urlopen(req, timeout=120).read())["data"]
-                    out += [x["embedding"] for x in sorted(d, key=lambda x: x["index"])]; break
+                    return [x["embedding"] for x in sorted(d, key=lambda x: x["index"])]
                 except Exception as e:
-                    if attempt == 3: raise SystemExit(f"OpenRouter embeddings failed: {e}")
-                    time.sleep(10 * (attempt + 1))
+                    if attempt == 5: raise SystemExit(f"OpenRouter embeddings failed: {e}")
+                    time.sleep(5 * (attempt + 1))
+        with ThreadPoolExecutor(8) as ex:                         # 8 requests in flight: several times faster than one at a time
+            out = [v for b in ex.map(batch, range(0, len(texts), 100)) for v in b]
         return unit(np.array(out, dtype=np.float32))
     if st_model is None:
         from sentence_transformers import SentenceTransformer
