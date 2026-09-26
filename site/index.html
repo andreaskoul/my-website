@@ -69,11 +69,18 @@ ol.tl .evs-wk span{color:var(--red)}
 .mtip b{display:block;font-size:15px}
 .mtip p{margin:4px 0 0}
 .red{color:var(--red)}
-.scrub{display:flex;align-items:center;gap:6px 10px;margin:10px 0 0;flex-wrap:wrap}
-.scrub button{all:unset;cursor:pointer;font-family:monospace;font-size:12px;padding:2px 3px}
-.scrub button[aria-pressed="true"]{color:var(--red);font-weight:bold;text-decoration:underline;text-underline-offset:3px}
-.scrub button:focus-visible{outline:2px solid var(--red)}
-.scrub .play{border:1px solid var(--ink);padding:2px 8px}
+.scrub{margin:12px 0 0}
+.scrub .now{font-family:monospace;font-size:13px}
+.scrub input{display:block;width:100%;margin:6px 0 2px;height:22px;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none}
+.scrub input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.scrub input::-webkit-slider-runnable-track{height:1px;background:var(--ink)}
+.scrub input::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;margin-top:-5.5px;background:var(--red);border:0;border-radius:0}
+.scrub input::-moz-range-track{height:1px;background:var(--ink)}
+.scrub input::-moz-range-thumb{width:12px;height:12px;background:var(--red);border:0;border-radius:0}
+.ticks{position:relative;height:16px;font-family:monospace;font-size:11px}
+.ticks span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
 footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-size:13px;font-style:italic}
 </style>
 </head>
@@ -87,7 +94,7 @@ footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-siz
   <section id="land">
     <h2>The landscape</h2>
     <div class="mw" id="mw"><svg class="map" id="map" width="100%" role="img" aria-label="Map of the company's news stories"></svg><div class="mtip" id="mtip" hidden></div></div>
-    <div class="scrub"><button class="play" id="play" aria-label="Replay the quarter">▶ replay</button><span id="wks"></span></div>
+    <div class="scrub"><div class="now" id="wkname"></div><input type="range" id="wk" min="0" max="1" step="1" value="1" aria-label="Week shown on the map"><div class="ticks" id="ticks"></div></div>
   </section>
   <div class="grid">
     <section>
@@ -115,7 +122,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const lab = w => { const [y,m,d] = w.split("-"); return mon[+m-1] + " " + (+d); };
-let D, M, sel, open = new Set(), evOpen = new Set(), mwk, mhi = null, mhe = null, timer = null;
+let D, M, sel, open = new Set(), evOpen = new Set(), mwk, mhi = null, mhe = null;
 
 async function load(tk){
   $("meta").textContent = "Loading…";
@@ -136,7 +143,7 @@ async function load(tk){
   $("meta").innerHTML = `<span class="mono">${D.n_articles.toLocaleString()}</span> articles over ${n} weeks, <span class="mono">${D.n_relevant.toLocaleString()}</span> about ${esc(D.name)} or its orbit, <span class="mono">${D.stories.length}</span> stories. Updated <span class="mono">${esc(D.updated)}</span>.`;
   $("range").textContent = `${D.latest_from} – ${D.latest_to}, ranked by how much was written. Open a story to read its articles.`;
   try { history.replaceState(null, "", "#" + tk); } catch(e) {}
-  M = null; mwk = n - 1; clearInterval(timer); timer = null;
+  M = null; mwk = n - 1;
   $("map").innerHTML = `<text x="20" y="30" class="m">Loading the map…</text>`; $("map").setAttribute("viewBox", "0 0 1000 120");
   render();
   try { const m = await (await fetch("data/map/" + encodeURIComponent(tk) + ".json")).json(); if (D.ticker === tk){ M = m; prepMap(); landscape(); } }
@@ -198,9 +205,11 @@ function prepMap(){
     if (l){ sel = +l.dataset.id; open.add(sel); return render(); }
     if (M.near) window.open(M.near.a[9], "_blank", "noopener");
   };
-  $("wks").onclick = e => { const b = e.target.closest("button"); if (!b) return; clearInterval(timer); timer = null; mwk = +b.dataset.w; landscape(); };
-  $("play").onclick = () => { clearInterval(timer); mwk = 0; landscape();
-    timer = setInterval(() => { mwk++; landscape(); if (mwk >= D.weeks.length-1){ clearInterval(timer); timer = null; } }, 900); };
+  const sl = $("wk"), step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor($("ticks").clientWidth / 80))));   // a date label per ~80px, "now" always
+  sl.max = n - 1; sl.value = mwk;
+  sl.oninput = () => { if (+sl.value !== mwk){ mwk = +sl.value; landscape(); } };   // redraws while dragging
+  $("ticks").innerHTML = D.weeks.map((w,i) => (i % step === 0 && i < n - 2) || i === n-1
+    ? `<span style="left:${(100*i/(n-1)).toFixed(2)}%">${i===n-1 ? "now" : lab(w)}</span>` : "").join("");
 }
 function tipAt(x, y, html){
   const tip = $("mtip"), r = $("map").getBoundingClientRect(), sx = r.width/M.w, sy = r.height/M.h;
@@ -223,9 +232,9 @@ function landscape(){
   const boxes = [];
   for (const q of M.regions){
     const s = D.stories.find(t => t.id === q.id); if (!s) continue;
-    const k = cnt(s), fs = 15 + Math.sqrt(k)*.8, x = q.cx, y = q.cy - q.r - 4, w = s.name.length*fs*.5;
-    boxes.push([x - w/2, y - 18 - fs, w, fs + 22]);
-    g += `<g class="lbl" data-id="${s.id}"><text x="${x}" y="${y-18}" text-anchor="middle" font-weight="bold" font-size="${fs.toFixed(1)}"${hi===s.id?' fill="#c00000"':""}>${esc(s.name)}</text><text class="m" x="${x}" y="${y-4}" text-anchor="middle">${k} ${last?"this":"that"} week</text></g>`;
+    const fs = 15 + Math.sqrt(cnt(s))*.8, x = q.cx, y = q.cy - q.r - 12, w = s.name.length*fs*.5;   // size follows that week's volume
+    boxes.push([x - w/2, y - fs, w, fs + 6]);
+    g += `<g class="lbl" data-id="${s.id}"><text x="${x}" y="${y}" text-anchor="middle" font-weight="bold" font-size="${fs.toFixed(1)}"${hi===s.id?' fill="#c00000"':""}>${esc(s.name)}</text></g>`;
   }
   const evs = D.events.map(e => ({e, k: (M.evw[e.id] || {})[mwk] || 0, p: M.events.find(q => q.id === e.id)})).filter(v => v.k >= 3 && v.p).sort((a,b) => b.k - a.k);
   for (const {e, k, p} of evs.slice(0, 12)){
@@ -237,7 +246,8 @@ function landscape(){
     g += `<g class="evl" data-e="${e.id}"><rect x="${X-w/2}" y="${Y-13}" width="${w}" height="17" fill="#fff" fill-opacity=".82" stroke="${on?"#c00000":"none"}"/><text x="${X}" y="${Y}" text-anchor="middle" font-size="12.5" font-style="italic"${on?' fill="#c00000"':""}>${esc(e.name)} <tspan class="m" font-style="normal" font-size="10">${k}</tspan></text></g>`;
   }
   $("map").innerHTML = g;
-  $("wks").innerHTML = D.weeks.map((w,i) => `<button data-w="${i}" aria-pressed="${i===mwk}">${i===n-1?"now":lab(w)}</button>`).join("");
+  $("wkname").innerHTML = last ? `<b>Now</b> · ${esc(D.latest_from)} – ${esc(D.latest_to)}` : `Week of <b>${lab(D.weeks[mwk])}</b>`;
+  $("wk").value = mwk;
 }
 
 function render(){
