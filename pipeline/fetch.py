@@ -1,6 +1,7 @@
 """Fetch company news from Finnhub + Polygon into data/raw/<TICKER>.jsonl.
 
-  python pipeline/fetch.py --days 2     # daily run (2 days = overlap for safety)
+  python pipeline/fetch.py --days 2     # daily run (2 days = overlap for safety; reaches further back
+                                        # for a firm whose newest stored article is older, so missed runs leave no gap)
   python pipeline/fetch.py --days 91    # backfill
 
 Appends new articles only (keyed on source + id) and trims each file to the
@@ -52,9 +53,12 @@ for f in firms:
     rows = [json.loads(l) for l in open(path)] if os.path.exists(path) else []
     seen = {(r["src"], r["id"]) for r in rows}
     new = []
+    last = max((r["published"] for r in rows), default=None)       # catch up after missed runs, within the window
+    gap = (now - datetime.fromisoformat(last.replace("Z", "+00:00"))).days + 1 if last else CFG["window_days"]
+    days = min(max(args.days, gap), CFG["window_days"])
 
     if PK:
-        since = (now - timedelta(days=args.days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        since = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
         url = "https://api.polygon.io/v2/reference/news?" + urllib.parse.urlencode(
             {"ticker": tk, "published_utc.gte": since, "limit": 1000, "order": "asc", "sort": "published_utc"})
         while url:
@@ -69,7 +73,7 @@ for f in firms:
             url = d.get("next_url")
 
     if FK:
-        for i in range(args.days, -1, -1):
+        for i in range(days, -1, -1):
             day = (now.date() - timedelta(days=i)).isoformat()
             d = get("https://finnhub.io/api/v1/company-news?" + urllib.parse.urlencode(
                 {"symbol": tk, "from": day, "to": day, "token": FK})) or []

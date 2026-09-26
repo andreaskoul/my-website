@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       days:
-        description: "Days of news to fetch (2 = daily, 91 = full backfill)"
+        description: "Days of news to fetch at least (2 = daily; each firm also catches up to its last stored article)"
         default: "2"
       refit:
         description: "Refit the stories now"
@@ -37,17 +37,13 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install (CPU-only torch keeps this small)
-        run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements.txt
+      - name: Install
+        run: pip install -r requirements.txt     # embeddings come from OpenRouter: no torch needed
 
-      - name: Restore embedding + model caches
+      - name: Restore embedding cache
         uses: actions/cache@v4
         with:
-          path: |
-            data/cache
-            ~/.cache/huggingface
+          path: data/cache
           key: emb-${{ github.run_id }}
           restore-keys: emb-
 
@@ -74,7 +70,11 @@ jobs:
           git config user.name "narratives-bot"
           git config user.email "narratives-bot@users.noreply.github.com"
           git add data/raw data/state site/data
-          git diff --cached --quiet || git commit -m "data: $(date -u +'%Y-%m-%d %H:%M')" && git push
+          if ! git diff --cached --quiet; then
+            git commit -m "data: $(date -u +'%Y-%m-%d %H:%M')"
+            git pull --rebase origin "${GITHUB_REF_NAME}"      # someone may have pushed during the run
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

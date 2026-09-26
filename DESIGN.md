@@ -33,22 +33,24 @@ cd site && python -m http.server           # open http://localhost:8000/#NVDA
 
 ## Setup still to do
 
-1. Create a **public** GitHub repo `narratives` (public = unlimited Actions minutes) and push this folder.
-2. Repo secrets: `FINNHUB_API_KEY`, `POLYGON_API_KEY`, `OPENROUTER_API_KEY` (all required; OpenRouter
-   serves both the embeddings and the story names). Optional repo variables (Settings → Secrets and
-   variables → Actions → Variables): `OPENROUTER_MODEL` (the LLM for names and events; unset = deepseek/deepseek-v4.1-flash)
-   and `EMBED_MODEL` (unset = openrouter:google/gemini-embedding-2; a plain id such as thenlper/gte-small
-   runs locally). Changing `EMBED_MODEL` refits every firm from scratch: centroids from two models are not
-   comparable, so story names are not carried over.
+1. Repo: `andreaskoul/my-website` (public = unlimited Actions minutes). Scheduled workflows run from the
+   default branch, so the branch holding this code must be the default.
+2. Repo secrets (Settings → Secrets and variables → Actions): `FINNHUB_API_KEY`, `POLYGON_API_KEY`,
+   `OPENROUTER_API_KEY` (all required; OpenRouter serves both the embeddings and the names). Optional repo
+   variables: `OPENROUTER_MODEL` (the LLM for names and events; unset = deepseek/deepseek-v4.1-flash) and
+   `EMBED_MODEL` (unset = openrouter:google/gemini-embedding-2; a plain id such as thenlper/gte-small runs
+   locally and needs sentence-transformers + torch). Changing `EMBED_MODEL` refits every firm from scratch:
+   centroids from two models are not comparable, so story names are not carried over.
    **The user pasted Finnhub, Polygon and OpenRouter keys into a chat during design — they must be
    rotated before being stored as secrets.**
 3. Settings → Pages → Source: **GitHub Actions**.
-4. Actions → `update` → Run workflow (days=2, refit=**false**). data/raw already holds the
-   13-week backfill (to 2026-09-22) and data/state holds stories fitted with gemini-embedding-2 and
-   named by Claude Sonnet 5 (new stories and events since: DeepSeek v4.1 Flash) — a refit now is unnecessary. The first run has no embedding cache, so it
-   embeds ~41k texts through OpenRouter (~1 min at 32 requests in flight, ~$0.40); later runs only
-   embed the day's new articles. Check the deployed page, then the next scheduled run.
-5. Expected daily runtime after that: ~5-8 min (Polygon's 5 calls/min dominates fetching).
+4. Actions → `update` → Run workflow (days=2, refit=**false**). Fetch catches each firm up to its newest
+   stored article, so the gap since the committed data (2026-09-22) is filled. data/state holds stories
+   fitted with gemini-embedding-2 — a refit now is unnecessary. The first run has no embedding cache, so it
+   embeds ~41k texts through OpenRouter (~1 min at 32 requests in flight, ~$0.40); later runs only embed
+   the day's new articles. The first data commit also re-sorts data/raw once (same rows, stable order).
+5. Expected runtime: daily ~10 min (Polygon's 5 calls/min dominates fetching; events add one LLM call per
+   firm); Mondays refit all firms, ~45 min on a 4-core machine with 3072-d vectors (job timeout 150 min).
 
 ## Decisions (and why)
 
