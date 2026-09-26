@@ -15,8 +15,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: update
@@ -26,9 +24,6 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 150
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +71,20 @@ jobs:
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
+  # a separate job, so a Pages problem (e.g. an environment rule) never stops the data update above
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}      # the branch tip, which includes the data commit just pushed
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
