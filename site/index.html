@@ -60,6 +60,7 @@ ol.tl li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;padding:
 ol.tl .evs-wk{margin-top:5px;font-size:14px}
 ol.tl .evs-wk span{color:var(--red)}
 #land{margin-top:22px}
+#land h2{margin-bottom:8px}
 .mw{position:relative;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
 .map text{font-family:"Times New Roman",Times,serif;fill:var(--ink);paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
 .map text.m{font-family:monospace;font-size:11px}
@@ -85,7 +86,6 @@ footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-siz
   <p class="meta" id="meta">Loading…</p>
   <section id="land">
     <h2>The landscape</h2>
-    <p class="sub">Every dot is an article of the last 13 weeks. Each circled region is a story; inside it, articles saying similar things sit together, and the italic labels are that week's events. Black dots are the selected week. Hover to read an article (click opens it), click a story to follow it below, press ▶ to replay the quarter.</p>
     <div class="mw" id="mw"><svg class="map" id="map" width="100%" role="img" aria-label="Map of the company's news stories"></svg><div class="mtip" id="mtip" hidden></div></div>
     <div class="scrub"><button class="play" id="play" aria-label="Replay the quarter">▶ replay</button><span id="wks"></span></div>
   </section>
