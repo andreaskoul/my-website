@@ -43,6 +43,9 @@ Per firm, in order:
      OPENROUTER_API_KEY are set; stories fall back to their most distinctive keywords.
   9. EXPORT: this week's articles per story, weekly share series, one representative
      headline per story per week, and the events with their articles.
+ 10. MAP (site/data/map/<TICKER>.json): every relevant article placed in 2D. One region per story, near
+     its position by meaning (MDS on story centroids), area by article count, its title reserved above
+     it, so no two regions or titles overlap; inside a region its articles are laid out by UMAP.
 """
 import argparse, collections, hashlib, json, math, os, re, sys, time, urllib.request
 from datetime import datetime, timedelta, timezone
@@ -415,6 +418,53 @@ for f in CFG["firms"]:
                            h=[R[i]["h"] for i in m]))
     events.sort(key=lambda e: e["end"], reverse=True)
     print(f"{tk}: {len(groups)} candidate groups ({len(todo)} new), {len(events)} events", flush=True)
+
+    # ---- MAP: regions in page pixels (MW x MH, as the site draws them) so they stay round.
+    #      Largest story first, each takes the free spot nearest its MDS position; if one finds no room,
+    #      every region shrinks and the placement starts over. Then UMAP inside each region, with each
+    #      article's distance from the centre replaced by its rank, so a dense core fills its region.
+    import umap                                                            # slow to import; only needed here
+    MW, MH, PADY = 1000, 540 + 80 * max(0, len(stories) - 6), 20
+    cnt = np.bincount(hard, minlength=len(stories)); live_k = np.where(cnt > 0)[0]
+    C = unit(np.array([X2[hard == k].mean(0) for k in live_k])); n = len(live_k)
+    J = np.eye(n) - 1 / n; w_, V_ = np.linalg.eigh(-0.5 * J @ ((1 - C @ C.T) ** 2) @ J)
+    target = V_[:, -2:] * np.sqrt(np.maximum(w_[-2:], 1e-9))
+    target = (target - target.mean(0)) / (np.abs(target).max() + 1e-9) * [MW * .4, MH * .4] + [MW / 2, MH / 2]
+    fs = np.array([15 + math.sqrt(max([v["n"] for v in out[k]["series"]] + [out[k]["latest_n"]])) * .8 for k in live_k])
+    tw = np.array([len(stories[k]["name"]) for k in live_k]) * fs * .5
+    gx, gy = np.meshgrid(np.arange(0, MW + 1, 8.0), np.arange(0, MH + 1, 8.0)); G = np.c_[gx.ravel(), gy.ravel()]
+    for area in (.26, .22, .18, .15, .12, .10, .08, .06, .04):
+        rad = np.sqrt(cnt[live_k] / cnt.sum() * MW * MH * area / np.pi)
+        hw, top, bot = np.maximum(rad, tw / 2 + 6), rad + fs + 22, rad + 6   # half width, extent above / below centre
+        P, placed = np.zeros((n, 2)), []
+        for a in np.argsort(-cnt[live_k]):
+            ok = (G[:, 0] - hw[a] >= 4) & (G[:, 0] + hw[a] <= MW - 4) & (G[:, 1] - top[a] >= PADY) & (G[:, 1] + bot[a] <= MH - 4)
+            for b in placed:
+                ok &= (np.abs(G[:, 0] - P[b, 0]) >= hw[a] + hw[b] + 14) | (G[:, 1] - P[b, 1] >= bot[b] + top[a] + 10) \
+                      | (P[b, 1] - G[:, 1] >= bot[a] + top[b] + 10)
+            if not ok.any(): break
+            c = G[ok]; P[a] = c[((c - target[a]) ** 2).sum(1).argmin()]; placed.append(a)
+        if len(placed) == n: break
+    Y = np.zeros((len(R), 2))
+    for a, k in enumerate(live_k):
+        m = np.where(hard == k)[0]
+        Z = (umap.UMAP(n_neighbors=min(30, len(m) - 1), min_dist=.1, metric="cosine", random_state=0).fit_transform(X2[m])
+             if len(m) >= 20 else np.random.default_rng(int(k)).normal(size=(len(m), 2)))
+        Z = Z - np.median(Z, 0); r = np.hypot(*Z.T) + 1e-9
+        Y[m] = P[a] + Z / r[:, None] * (np.sqrt((np.argsort(np.argsort(r)) + .5) / len(r)) * rad[a])[:, None]
+    widx = {w: i for i, w in enumerate(weeks)}
+    evi = {h: e["id"] for e in events for h in e["h"]}
+    os.makedirs(f"{ROOT}/site/data/map", exist_ok=True)
+    json.dump(dict(w=MW, h=MH,
+                   regions=[dict(id=stories[k]["id"], cx=round(float(P[a, 0]), 1), cy=round(float(P[a, 1]), 1), r=round(float(rad[a]), 1))
+                            for a, k in enumerate(live_k)],
+                   events=[dict(id=e["id"], x=round(float(np.median([Y[pos[h], 0] for h in e["h"]])), 1),
+                                y=round(float(np.median([Y[pos[h], 1] for h in e["h"]])), 1)) for e in events],
+                   cols=["x", "y", "story", "event", "week", "now", "title", "publisher", "date", "url"],
+                   arts=[[round(float(Y[i, 0]), 1), round(float(Y[i, 1]), 1), stories[hard[i]]["id"], evi.get(R[i]["h"], -1),
+                          widx[wk[i]], int(recent[i]), R[i]["t"], R[i]["publisher"], R[i]["dt"].strftime("%b %d"), R[i]["url"]]
+                         for i in range(len(R))]),
+              open(f"{ROOT}/site/data/map/{tk}.json", "w"), ensure_ascii=False, separators=(",", ":"))
 
     doc = dict(ticker=tk, name=firm, updated=now.strftime("%Y-%m-%d %H:%M UTC"), weeks=[w.isoformat() for w in weeks],
                latest_from=week_cut.strftime("%b %d"), latest_to=now.strftime("%b %d"),

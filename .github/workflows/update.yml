@@ -71,6 +71,10 @@ jobs:
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
+      - uses: actions/upload-pages-artifact@v3      # the built site, incl. the map files that are not committed
+        with:
+          path: site
+
   # a separate job, so a Pages problem (e.g. an environment rule) never stops the data update above
   deploy:
     needs: update
@@ -82,12 +86,5 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}      # the branch tip, which includes the data commit just pushed
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
       - id: deploy
         uses: actions/deploy-pages@v4

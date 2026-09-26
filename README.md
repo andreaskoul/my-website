@@ -2,7 +2,7 @@
 
 What is being said about a company this week, and how each story got here.
 
-Pick a company, see what happened this week (dated events such as an earnings call or a deal), its
+Pick a company, see its news as a landscape (every article a dot, every story a region), what happened this week (dated events such as an earnings call or a deal), its
 dominant news stories with the articles behind them, and follow any story week by week over the last quarter. Updated daily, automatically.
 
 **How it works.** Company news from Finnhub and Polygon is de-duplicated and embedded. Articles

@@ -2,4 +2,4 @@ numpy>=1.26
 scipy>=1.11
 scikit-learn>=1.4
 # sentence-transformers>=3.0   only for a local EMBED_MODEL such as thenlper/gte-small (install torch CPU first)
-# umap-learn                   only for pipeline/map_mockup.py
+umap-learn>=0.5              # the landscape map (build.py step 10)

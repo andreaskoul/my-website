@@ -156,6 +156,21 @@ minimum is untested). Stored as article hashes, not centroids: a 3072-d centroid
 megabytes to the committed state daily. The site shows this week's events (then the latest before
 them), marks each story's events on its chart line (◇) and in its week-by-week timeline.
 
+**The landscape (build.py step 10, site "The landscape").** Every relevant article is a dot; each story
+is a circled region with its title above it. A shared 2D map (one UMAP over all articles) was tried first:
+under gte-small four of five stories overlapped and their titles collided; supervising UMAP with the story
+labels (target_weight 0.05-0.5) collapsed each story into a speck. So the layout is two-level: regions are
+placed near their MDS position on story-centroid distance, area by article count, the title's box reserved
+above each region; largest first, each takes the nearest free spot, all shrink if one does not fit (the map
+grows 80px per story beyond 6). Inside a region, UMAP of its articles, each article's distance from the
+centre replaced by its rank so a dense core fills the region. Event labels sit at their articles' median,
+moved to the nearest free row when they would cover a title. Written to site/data/map/<TICKER>.json (NVDA
+~1.3 MB, ~300 KB gzipped), loaded after the page; not committed (it would grow the history by MBs a day) —
+the update job hands the built site to the deploy job as the Pages artifact. The layout is recomputed every run, so regions can move
+between days. Known issue: at phone width the 1000px map shrinks until the titles are unreadable.
+Snapshots from the design phase (site/mockups/, including the embedding comparison) were made by a
+since-removed pipeline/map_mockup.py and are not updated.
+
 **Design (user's explicit spec):** dead simple — white background, black and red text only,
 browser-default fonts (Times New Roman, default monospace), no cards/shadows/rounded corners.
 Red marks the selected story and positive momentum. Keep it that way.
