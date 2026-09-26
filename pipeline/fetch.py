@@ -22,6 +22,8 @@ FK, PK = os.environ.get("FINNHUB_API_KEY"), os.environ.get("POLYGON_API_KEY")
 now = datetime.now(timezone.utc)
 keep_after = (now - timedelta(days=CFG["window_days"] + 30)).isoformat()
 firms = [f for f in CFG["firms"] if not args.only or f["ticker"] in args.only.split(",")]
+if not (FK or PK): raise SystemExit("no FINNHUB_API_KEY or POLYGON_API_KEY in the environment (repo secrets): nothing to fetch")
+if not (FK and PK): print(f"warning: {'POLYGON' if FK else 'FINNHUB'}_API_KEY missing, that source is skipped", flush=True)
 
 def clean(t):
     t = html.unescape(html.unescape(t or ""))

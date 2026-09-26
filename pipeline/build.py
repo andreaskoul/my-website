@@ -101,6 +101,8 @@ for rows in feeds.values():
         r["h"] = hashlib.sha1(r["text"].encode()).hexdigest()[:16]
         if r["h"] not in cache: todo[r["h"]] = r["text"]
 live = {r["h"] for rows in feeds.values() for r in rows}          # texts that fell out of the window are dropped
+if EMBED.startswith("openrouter:") and todo and not OR_KEY:
+    raise SystemExit(f"{len(todo)} texts to embed with {EMBED} but no OPENROUTER_API_KEY in the environment (repo secret)")
 st_model = None
 def embed(texts):
     global st_model
@@ -115,7 +117,8 @@ def embed(texts):
                     d = json.loads(urllib.request.urlopen(req, timeout=120).read())["data"]
                     return [x["embedding"] for x in sorted(d, key=lambda x: x["index"])]
                 except Exception as e:
-                    if attempt == 7: raise SystemExit(f"OpenRouter embeddings failed: {e}")
+                    if attempt == 7 or getattr(e, "code", 0) in (401, 402, 403):     # a refused key will not recover
+                        raise SystemExit(f"OpenRouter embeddings failed: {e}")
                     time.sleep(3 * (attempt + 1))                  # Google answers 429 now and then under load
         with ThreadPoolExecutor(32) as ex:                        # Gemini takes at most 100 texts per request; throughput
                                                                   # tops out near 32 requests in flight (~900 texts/s)
