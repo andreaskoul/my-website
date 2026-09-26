@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Narrative landscape — Andreas Koulopoulos</title>
+<style>
+:root{--ink:#000;--red:#c00000;--faint:rgba(0,0,0,.18);color-scheme:light}
+html{background:#fff}
+body{margin:0;background:#fff;color:var(--ink);font-family:"Times New Roman",Times,serif;font-size:17px;line-height:1.45}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:18px;padding-block:24px 60px}
+.site{max-width:1080px;margin:0 auto;padding:14px 18px 0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 18px}
+.site .me{font-size:17px}
+.site nav{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px}
+.site a{color:#000}
+.site a[aria-current="page"]{color:#c00000}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px}
+h1{font-size:34px;font-weight:bold;margin:0}
+h1 small{font-family:monospace;font-size:14px;font-weight:normal;margin-left:8px}
+select{font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1px solid var(--ink);padding:3px 6px}
+.meta{font-size:14px;margin:8px 0 0}
+.mono{font-family:monospace;font-size:.86em}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;margin-top:22px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+h2{font-size:22px;margin:0 0 2px}
+.sub{font-size:14px;margin:0 0 12px;font-style:italic}
+.story{border-top:1px solid var(--ink)}
+.story:last-child{border-bottom:1px solid var(--ink)}
+.row{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto 86px;gap:12px;align-items:center;width:100%;padding:10px 0}
+.row:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.name{font-size:19px;font-weight:bold}
+.sel .name{color:var(--red)}
+.blurb{font-size:14px}
+.num{text-align:right;font-family:monospace}
+.num b{font-size:18px;display:block}
+.num span{font-size:12px}
+.up{color:var(--red)}
+svg{display:block;overflow:visible}
+.arts{list-style:none;margin:0;padding:0 0 14px 18px;display:flex;flex-direction:column;gap:10px}
+.arts p{margin:2px 0 0;font-size:14px}
+.src{font-family:monospace;font-size:12px}
+a{color:var(--ink)}
+a:hover{color:var(--red)}
+.chart text{font-family:monospace;font-size:11px;fill:var(--ink)}
+.tip{position:absolute;pointer-events:none;background:#fff;border:1px solid var(--ink);font-family:monospace;font-size:12px;padding:3px 6px;white-space:nowrap;transform:translate(-50%,-115%)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;margin:8px 0 0}
+.legend button{all:unset;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.legend button[aria-pressed="true"]{color:var(--red);font-weight:bold}
+.legend button:focus-visible{outline:2px solid var(--red)}
+ol.tl{list-style:none;margin:10px 0 0;padding:0}
+ol.tl li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;padding:8px 0;border-top:1px solid var(--faint)}
+.wk{font-family:monospace;font-size:12px}
+.peak{font-family:monospace;font-size:11px;color:var(--red);margin-left:6px}
+.bar{height:2px;background:var(--ink);margin-top:4px}
+.peakbar{background:var(--red)}
+.evs{margin:0 0 30px}
+.ev{border-top:1px solid var(--faint)}
+.ev:last-child{border-bottom:1px solid var(--faint)}
+.evrow{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:78px minmax(0,1fr) auto;gap:12px;align-items:baseline;width:100%;padding:8px 0}
+.evrow:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.evname{font-weight:bold;font-size:17px}
+.ev.mine .evname{color:var(--red)}
+.evst{font-size:13px;font-style:italic}
+.ev .arts{padding-left:90px}
+ol.tl .evs-wk{margin-top:5px;font-size:14px}
+ol.tl .evs-wk span{color:var(--red)}
+#land{margin-top:22px}
+#land h2{margin-bottom:8px}
+.mw{position:relative;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+.map text{font-family:"Times New Roman",Times,serif;fill:var(--ink);paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.map text.m{font-family:monospace;font-size:11px}
+.map .lbl,.map .evl{cursor:pointer}
+.mtip{position:absolute;z-index:2;pointer-events:none;background:#fff;border:1px solid var(--ink);padding:8px 10px;width:300px;max-width:calc(100% - 20px);font-size:14px;line-height:1.35}
+.mtip b{display:block;font-size:15px}
+.mtip p{margin:4px 0 0}
+.red{color:var(--red)}
+.scrub{margin:12px 0 0}
+.scrub .now{font-family:monospace;font-size:13px}
+.scrub input{display:block;width:100%;margin:6px 0 2px;height:22px;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none}
+.scrub input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.scrub input::-webkit-slider-runnable-track{height:1px;background:var(--ink)}
+.scrub input::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;margin-top:-5.5px;background:var(--red);border:0;border-radius:0}
+.scrub input::-moz-range-track{height:1px;background:var(--ink)}
+.scrub input::-moz-range-thumb{width:12px;height:12px;background:var(--red);border:0;border-radius:0}
+.ticks{position:relative;height:16px;font-family:monospace;font-size:11px}
+.ticks span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
+footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-size:13px;font-style:italic}
+</style>
+</head>
+<body>
+<div class="site"><span class="me">Andreas Koulopoulos</span><nav aria-label="Site"><a href="index.html">home</a><a href="cv.html">cv</a><a href="thesis.html">thesis</a><a href="narratives.html" aria-current="page">narrative landscape</a></nav></div>
+<div class="wrap">
+  <header>
+    <h1 id="title">Narratives</h1>
+    <label>Company &nbsp;<select id="pick" aria-label="Choose a company"></select></label>
+  </header>
+  <p class="meta" id="meta">Loading…</p>
+  <section id="land">
+    <h2>The landscape</h2>
+    <div class="mw" id="mw"><svg class="map" id="map" width="100%" role="img" aria-label="Map of the company's news stories"></svg><div class="mtip" id="mtip" hidden></div></div>
+    <div class="scrub"><div class="now" id="wkname"></div><input type="range" id="wk" min="0" max="1" step="1" value="1" aria-label="Week shown on the map"><div class="ticks" id="ticks"></div></div>
+  </section>
+  <div class="grid">
+    <section>
+      <h2>What happened</h2>
+      <p class="sub" id="ev-range"></p>
+      <div class="evs" id="events"></div>
+      <h2>This week</h2>
+      <p class="sub" id="range"></p>
+      <div id="stories"></div>
+    </section>
+    <section>
+      <h2>How it evolved</h2>
+      <p class="sub">Each story's share of the company's coverage, week by week.</p>
+      <div style="position:relative" id="cbox"><svg class="chart" id="chart" viewBox="0 0 500 220" width="100%" role="img" aria-label="Weekly share of coverage per story"></svg><div class="tip" id="tip" hidden></div></div>
+      <div class="legend" id="legend"></div>
+      <h2 style="margin-top:26px" id="tl-title"></h2>
+      <p class="sub">The most typical headline each week — the story in its own words.</p>
+      <ol class="tl" id="tl"></ol>
+    </section>
+  </div>
+  <footer id="foot">Stories are groups of articles that mean the same thing and discuss the company far more often than chance. Events are bursts of articles about one happening within a few days, sorted from commentary and named by an LLM. Sources: Finnhub and Polygon company news, de-duplicated. The current week is still in progress.</footer>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const lab = w => { const [y,m,d] = w.split("-"); return mon[+m-1] + " " + (+d); };
+let D, M, sel, open = new Set(), evOpen = new Set(), mwk, mhi = null, mhe = null;
+
+async function load(tk){
+  $("meta").textContent = "Loading…";
+  try { D = await (await fetch("data/" + encodeURIComponent(tk) + ".json")).json(); }
+  catch(e){ $("meta").textContent = "Could not load data for " + tk + "."; return; }
+  const n = D.weeks.length;
+  D.stories.forEach(s => {
+    const sh = w => (s.series.find(x => x.week === w) || {share:0}).share;
+    const prev = D.weeks.slice(Math.max(0,n-6), n-2).map(sh);
+    s.delta = sh(D.weeks[n-2]) - prev.reduce((a,b)=>a+b,0) / Math.max(prev.length,1);
+    s.sh = sh;
+  });
+  D.order = [...D.stories].sort((a,b) => b.latest_n - a.latest_n);
+  sel = D.order[0]?.id; open = new Set([sel]); evOpen = new Set();
+  D.events = D.events || [];
+  $("title").innerHTML = esc(D.name) + "<small>" + esc(D.ticker) + "</small>";
+  document.title = D.name + " — Narrative landscape";
+  $("meta").innerHTML = `<span class="mono">${D.n_articles.toLocaleString()}</span> articles over ${n} weeks, <span class="mono">${D.n_relevant.toLocaleString()}</span> about ${esc(D.name)} or its orbit, <span class="mono">${D.stories.length}</span> stories. Updated <span class="mono">${esc(D.updated)}</span>.`;
+  $("range").textContent = `${D.latest_from} – ${D.latest_to}, ranked by how much was written. Open a story to read its articles.`;
+  try { history.replaceState(null, "", "#" + tk); } catch(e) {}
+  M = null; mwk = n - 1;
+  $("map").innerHTML = `<text x="20" y="30" class="m">Loading the map…</text>`; $("map").setAttribute("viewBox", "0 0 1000 120");
+  render();
+  try { const m = await (await fetch("data/map/" + encodeURIComponent(tk) + ".json")).json(); if (D.ticker === tk){ M = m; prepMap(); landscape(); } }
+  catch(e){ $("map").innerHTML = `<text x="20" y="30" class="m">No map for this company yet.</text>`; }
+}
+
+function spark(s){
+  const w = D.weeks.slice(0,-1), v = w.map(s.sh), mx = Math.max(...D.stories.flatMap(t => w.map(t.sh)), 1e-6);
+  const p = v.map((y,i) => [i*84/Math.max(v.length-1,1)+1, 27-y/mx*24]);
+  const d = p.map((q,i) => (i?"L":"M") + q[0].toFixed(1) + "," + q[1].toFixed(1)).join("");
+  const e = p[p.length-1];
+  return `<svg viewBox="0 0 86 30" width="86" height="30" aria-hidden="true"><path d="${d}" fill="none" stroke="#000" stroke-width="1"/><circle cx="${e[0]}" cy="${e[1]}" r="2.2" fill="${s.id===sel?"#c00000":"#000"}"/></svg>`;
+}
+
+const span = e => { const a = lab(e.start), b = lab(e.end); return a===b ? a : a.split(" ")[0]===b.split(" ")[0] ? a + "–" + b.split(" ")[1] : a + " – " + b; };
+const peakWeek = e => Object.entries(e.weeks).sort((a,b) => b[1]-a[1])[0][0];
+
+function events(){
+  const now = D.events.filter(e => e.latest_n > 0), earlier = D.events.filter(e => e.latest_n === 0);
+  const list = now.concat(earlier.slice(0, Math.max(0, 5 - now.length)));   // at least five, newest first
+  $("ev-range").textContent = (now.length ? `${now.length} this week, ` : "None this week yet, ") +
+    "then the latest before it. An event is a burst of articles about one happening, within a few days. Open one to read them.";
+  $("events").innerHTML = list.length ? list.map(e => {
+    const st = D.stories.find(s => s.id===e.story), isOpen = evOpen.has(e.id);
+    return `<div class="ev ${e.story===sel?"mine":""}"><button class="evrow" data-id="${e.id}" aria-expanded="${isOpen}">
+      <span class="wk">${span(e)}</span><span><span class="evname">${esc(e.name)}</span><div class="evst">${esc(st ? st.name : "")}</div></span>
+      <span class="num"><span>${e.n} art.</span></span></button>
+      ${isOpen ? `<ul class="arts">${e.top.map(a => `<li><a href="${esc(a.u)}" target="_blank" rel="noopener">${esc(a.t)}</a><div class="src">${esc(a.p)} · ${esc(a.date)}</div></li>`).join("")}</ul>` : ""}</div>`;
+  }).join("") : `<p class="sub">No events found in this window.</p>`;
+  document.querySelectorAll(".evrow").forEach(b => b.onclick = () => {
+    const id = +b.dataset.id, e = D.events.find(e => e.id===id);
+    evOpen.has(id) ? evOpen.delete(id) : evOpen.add(id); sel = e.story; render(); });
+}
+
+// ---- the landscape: M.arts rows are [x, y, story, event, week, now, title, publisher, date, url] in map pixels
+function prepMap(){
+  const n = D.weeks.length;
+  M.dots = M.arts.map(a => ({x:a[0], y:a[1], s:a[2], e:a[3], slot: a[5] ? n-1 : a[4], a}));   // this week's go in the last slot
+  M.evw = {}; M.dots.forEach(d => { if (d.e >= 0) (M.evw[d.e] = M.evw[d.e] || {})[d.slot] = ((M.evw[d.e] || {})[d.slot] || 0) + 1; });
+  const svg = $("map"); svg.setAttribute("viewBox", `0 0 ${M.w} ${M.h}`);
+  svg.onpointermove = e => {
+    const r = svg.getBoundingClientRect(), x = (e.clientX-r.left)*M.w/r.width, y = (e.clientY-r.top)*M.h/r.height, tip = $("mtip");
+    const l = e.target.closest(".lbl"), v = e.target.closest(".evl");
+    if (v){ const ev = D.events.find(q => q.id === +v.dataset.e); if (mhe !== ev.id){ mhe = ev.id; mhi = null; landscape(); }
+      return tipAt(x, y, `<span class="src">${ev.n} ARTICLES · ${esc(span(ev)).toUpperCase()}</span><b>${esc(ev.name)}</b><ol style="margin:6px 0 0;padding-left:18px">${ev.top.map(a => `<li>${esc(a.t)}</li>`).join("")}</ol>`); }
+    if (l){ const st = D.stories.find(q => q.id === +l.dataset.id); if (mhi !== st.id){ mhi = st.id; mhe = null; landscape(); }
+      return tipAt(x, y, `<span class="src">${st.latest_n} ARTICLES THIS WEEK</span><b>${esc(st.name)}</b><p>${esc(st.blurb)}</p>`); }
+    if (mhi !== null || mhe !== null){ mhi = null; mhe = null; landscape(); }
+    let best = null, bd = 18*18;
+    for (const d of M.dots){ const q = (d.x-x)**2 + (d.y-y)**2; if (q < bd){ bd = q; best = d; } }
+    M.near = best; if (!best){ tip.hidden = true; return; }
+    const st = D.stories.find(q => q.id === best.s), ev = D.events.find(q => q.id === best.e);
+    tipAt(best.x, best.y, `<b>${esc(best.a[6])}</b><p class="src">${esc(best.a[7])} · ${esc(best.a[8])} · <span class="red">${esc(st ? st.name : "")}</span>${ev ? " · <i>" + esc(ev.name) + "</i>" : ""}</p>`);
+  };
+  svg.onpointerleave = () => { $("mtip").hidden = true; M.near = null; if (mhi !== null || mhe !== null){ mhi = null; mhe = null; landscape(); } };
+  svg.onclick = e => {
+    const l = e.target.closest(".lbl"), v = e.target.closest(".evl");
+    if (v){ const ev = D.events.find(q => q.id === +v.dataset.e); evOpen.add(ev.id); sel = ev.story; return render(); }
+    if (l){ sel = +l.dataset.id; open.add(sel); return render(); }
+    if (M.near) window.open(M.near.a[9], "_blank", "noopener");
+  };
+  const sl = $("wk"), step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor($("ticks").clientWidth / 80))));   // a date label per ~80px, "now" always
+  sl.max = n - 1; sl.value = mwk;
+  sl.oninput = () => { if (+sl.value !== mwk){ mwk = +sl.value; landscape(); } };   // redraws while dragging
+  $("ticks").innerHTML = D.weeks.map((w,i) => (i % step === 0 && i < n - 2) || i === n-1
+    ? `<span style="left:${(100*i/(n-1)).toFixed(2)}%">${i===n-1 ? "now" : lab(w)}</span>` : "").join("");
+}
+function tipAt(x, y, html){
+  const tip = $("mtip"), r = $("map").getBoundingClientRect(), sx = r.width/M.w, sy = r.height/M.h;
+  tip.innerHTML = html; tip.hidden = false;
+  let L = x*sx + 14, T = y*sy + 14;
+  if (L + tip.offsetWidth > r.width) L = x*sx - tip.offsetWidth - 14; if (L < 0) L = 4;
+  if (T + tip.offsetHeight > r.height) T = Math.max(4, y*sy - tip.offsetHeight - 14);
+  tip.style.left = L + "px"; tip.style.top = T + "px";
+}
+function landscape(){
+  if (!M) return;
+  const n = D.weeks.length, last = mwk === n-1, hi = mhi ?? (mhe === null ? sel : null);
+  const cnt = s => last ? s.latest_n : ((s.series[mwk] || {n:0}).n);
+  let g = M.regions.map(q => `<circle cx="${q.cx}" cy="${q.cy}" r="${q.r+6}" fill="none" stroke="${hi===q.id?"#c00000":"#000"}" stroke-opacity="${hi===q.id?.6:.18}" stroke-dasharray="1 3"/>`).join("");
+  for (const d of M.dots){
+    const on = mhe !== null ? d.e === mhe : hi !== null && d.s === hi, cur = d.slot === mwk;
+    const f = on ? (cur ? "#c00000" : "rgba(192,0,0,.35)") : (cur ? "#000" : "rgba(0,0,0,.13)");
+    g += `<circle cx="${d.x}" cy="${d.y}" r="${cur?2.4:1.6}" fill="${f}"${(hi!==null||mhe!==null) && !on ? ' opacity=".35"' : ""}/>`;
+  }
+  const boxes = [];
+  for (const q of M.regions){
+    const s = D.stories.find(t => t.id === q.id); if (!s) continue;
+    const fs = 15 + Math.sqrt(cnt(s))*.8, x = q.cx, y = q.cy - q.r - 12, w = s.name.length*fs*.5;   // size follows that week's volume
+    boxes.push([x - w/2, y - fs, w, fs + 6]);
+    g += `<g class="lbl" data-id="${s.id}"><text x="${x}" y="${y}" text-anchor="middle" font-weight="bold" font-size="${fs.toFixed(1)}"${hi===s.id?' fill="#c00000"':""}>${esc(s.name)}</text></g>`;
+  }
+  const evs = D.events.map(e => ({e, k: (M.evw[e.id] || {})[mwk] || 0, p: M.events.find(q => q.id === e.id)})).filter(v => v.k >= 3 && v.p).sort((a,b) => b.k - a.k);
+  for (const {e, k, p} of evs.slice(0, 12)){
+    const w = e.name.length*6.1 + 34, X = Math.min(M.w - w/2 - 2, Math.max(w/2 + 2, p.x));
+    const hit = b => boxes.some(q => b[0] < q[0]+q[2] && q[0] < b[0]+b[2] && b[1] < q[1]+q[3] && q[1] < b[1]+b[3]);
+    const dy = [0, 19, -19, 38, -38, 57, -57].find(d => !hit([X - w/2, p.y + d - 13, w, 17]));   // nearest free row
+    if (dy === undefined) continue;
+    const Y = p.y + dy; boxes.push([X - w/2, Y - 13, w, 17]); const on = mhe === e.id;
+    g += `<g class="evl" data-e="${e.id}"><rect x="${X-w/2}" y="${Y-13}" width="${w}" height="17" fill="#fff" fill-opacity=".82" stroke="${on?"#c00000":"none"}"/><text x="${X}" y="${Y}" text-anchor="middle" font-size="12.5" font-style="italic"${on?' fill="#c00000"':""}>${esc(e.name)} <tspan class="m" font-style="normal" font-size="10">${k}</tspan></text></g>`;
+  }
+  $("map").innerHTML = g;
+  $("wkname").innerHTML = last ? `<b>Now</b> · ${esc(D.latest_from)} – ${esc(D.latest_to)}` : `Week of <b>${lab(D.weeks[mwk])}</b>`;
+  $("wk").value = mwk;
+}
+
+function render(){
+  events(); landscape();
+  $("stories").innerHTML = D.order.map(s => {
+    const pts = Math.round(s.delta*1000)/10;
+    const d = Math.abs(pts) < 1 ? "steady" : (pts > 0 ? "+" + pts + " pts" : "−" + Math.abs(pts) + " pts");
+    const isOpen = open.has(s.id);
+    return `<div class="story ${s.id===sel?"sel":""}">
+      <button class="row" data-id="${s.id}" aria-expanded="${isOpen}">
+        <span><span class="name">${esc(s.name)}</span>${s.new?`<span class="peak" title="A story that appeared in the last two weeks">NEW</span>`:""}<div class="blurb">${esc(s.blurb)}</div></span>
+        <span class="num"><b>${s.latest_n}</b><span class="${pts>=1?"up":""}" title="Share of coverage last full week vs the four weeks before">${d}</span></span>
+        ${spark(s)}
+      </button>
+      ${isOpen ? `<ul class="arts">${s.latest.length ? s.latest.map(a => `<li><a href="${esc(a.u)}" target="_blank" rel="noopener">${esc(a.t)}</a>${a.d?`<p>${esc(a.d)}</p>`:""}<div class="src">${esc(a.p)} · ${esc(a.date)}</div></li>`).join("") : "<li><i>Nothing this week.</i></li>"}</ul>` : ""}
+    </div>`;
+  }).join("");
+  document.querySelectorAll(".row").forEach(b => b.onclick = () => {
+    const id = +b.dataset.id; sel = id; open.has(id) ? open.delete(id) : open.add(id); render(); });
+  chart(); timeline();
+}
+
+function chart(){
+  const L=34,R=8,T=8,B=24,W=500-L-R,H=220-T-B, ws=D.weeks, n=ws.length;
+  const mx = Math.max(0.1, Math.ceil(Math.max(...D.stories.flatMap(s => ws.map(s.sh)))*10)/10);
+  const x = i => L + i*W/Math.max(n-1,1), y = v => T + H - v/mx*H;
+  let g = "";
+  for (let k=0;k<=5;k++){ const v = mx*k/5; g += `<line x1="${L}" x2="${L+W}" y1="${y(v)}" y2="${y(v)}" stroke="#000" stroke-opacity="${k?0.12:1}"/><text x="${L-5}" y="${y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`; }
+  ws.forEach((w,i) => { if ((i%3===0 && i<n-2) || i===n-1) g += `<text x="${x(i)}" y="${214}" text-anchor="middle">${lab(w)}</text>`; });
+  g += `<line x1="${x(n-2)}" x2="${x(n-2)}" y1="${T}" y2="${T+H}" stroke="#000" stroke-dasharray="2 3"/><text x="${x(n-1)}" y="${T+10}" text-anchor="end">now</text>`;
+  const line = s => ws.map((w,i) => (i?"L":"M") + x(i).toFixed(1) + "," + y(s.sh(w)).toFixed(1)).join("");
+  D.stories.filter(s => s.id!==sel).forEach(s => g += `<path d="${line(s)}" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="1"/>`);
+  const s = D.stories.find(s => s.id===sel);
+  if (s){ g += `<path d="${line(s)}" fill="none" stroke="#c00000" stroke-width="2"/>`;
+    ws.forEach((w,i) => g += `<circle cx="${x(i)}" cy="${y(s.sh(w))}" r="2.2" fill="#c00000"/>`);
+    D.events.filter(e => e.story===s.id).forEach(e => { const i = ws.indexOf(peakWeek(e)); if (i < 0) return;   // an event: a diamond above its peak week
+      const X = x(i), Y = y(s.sh(ws[i])) - 9;
+      g += `<path d="M${X},${Y-4}L${X+4},${Y}L${X},${Y+4}L${X-4},${Y}Z" fill="#fff" stroke="#c00000" stroke-width="1.3"><title>${esc(e.name)} (${span(e)})</title></path>`; }); }
+  g += `<line id="cx" y1="${T}" y2="${T+H}" stroke="#000" stroke-opacity="0"/><rect id="hit" x="${L}" y="${T}" width="${W}" height="${H}" fill="transparent"/>`;
+  const svg = $("chart"); svg.innerHTML = g;
+  const tip = $("tip"), cx = svg.querySelector("#cx");
+  svg.querySelector("#hit").onmousemove = e => {
+    const r = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n-1, Math.round(((e.clientX-r.left)*500/r.width - L)/(W/Math.max(n-1,1)))));
+    const q = s.series.find(v => v.week===ws[i]) || {share:0,n:0};
+    cx.setAttribute("x1", x(i)); cx.setAttribute("x2", x(i)); cx.setAttribute("stroke-opacity", .5);
+    tip.hidden = false; tip.style.left = x(i)*r.width/500 + "px"; tip.style.top = y(q.share)*r.height/220 + "px";
+    tip.textContent = `${lab(ws[i])}: ${Math.round(q.share*100)}%, ${q.n} articles`; };
+  svg.querySelector("#hit").onmouseleave = () => { tip.hidden = true; cx.setAttribute("stroke-opacity", 0); };
+  $("legend").innerHTML = (D.events.some(e => e.story===sel) ? `<span class="src" style="width:100%">◇ = an event in this story (hover for its name)</span>` : "") + D.stories.map(t => `<button data-id="${t.id}" aria-pressed="${t.id===sel}">${esc(t.name)}</button>`).join("");
+  document.querySelectorAll(".legend button").forEach(b => b.onclick = () => { sel = +b.dataset.id; render(); });
+}
+
+function timeline(){
+  const s = D.stories.find(s => s.id===sel); if (!s) return;
+  const mx = Math.max(...s.evolution.map(e => e.n), 1);
+  $("tl-title").textContent = s.name;
+  $("tl").innerHTML = [...s.evolution].reverse().map(e => `<li><div class="wk">${lab(e.week)}<br>${e.n} art.</div>
+    <div><a href="${esc(e.u)}" target="_blank" rel="noopener">${esc(e.h)}</a>${e.n===mx?`<span class="peak">PEAK WEEK</span>`:""}
+    <div class="src">${esc(e.p)}</div><div class="bar ${e.n===mx?"peakbar":""}" style="width:${Math.max(3,100*e.n/mx)}%"></div>
+    ${(() => { const ev = D.events.filter(v => v.story===s.id && v.weeks[e.week]); return ev.length ? `<div class="evs-wk">${ev.map(v => `<span>◇</span> ${esc(v.name)} <span class="src" style="color:inherit">${span(v)}</span>`).join("<br>")}</div>` : ""; })()}</div></li>`).join("");
+}
+
+(async () => {
+  let idx;
+  try { idx = await (await fetch("data/index.json")).json(); } catch(e) { $("meta").textContent = "Could not load the company list."; return; }
+  $("pick").innerHTML = idx.firms.map(f => `<option value="${esc(f.ticker)}">${esc(f.name)} (${esc(f.ticker)})</option>`).join("");
+  const want = decodeURIComponent(location.hash.slice(1));
+  const first = idx.firms.some(f => f.ticker===want) ? want : idx.firms[0].ticker;
+  $("pick").value = first; $("pick").onchange = e => load(e.target.value);
+  load(first);
+})();
+</script>
+</body>
+</html>

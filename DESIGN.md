@@ -18,7 +18,8 @@ pipeline/build.py          raw -> stories -> site/data/<TICKER>.json (+ index.js
 data/raw/                  committed; ~13 weeks per firm
 data/state/<TICKER>.json   committed; the fitted story model per firm (centroids, names, ids)
 data/cache/emb-<model>.npz NOT committed; embedding cache per model, kept in actions/cache
-site/index.html            the whole frontend (vanilla JS, no build step)
+site/narratives.html       the narrative landscape page (vanilla JS, no build step)
+site/index.html, cv.html, thesis.html   the personal site around it: shared header (name + links), blank for now
 .github/workflows/update.yml   daily at 06:15 UTC; refits stories on Mondays; manual run with days=91 = backfill
 ```
 
@@ -28,7 +29,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu && pip instal
 export FINNHUB_API_KEY=... POLYGON_API_KEY=...        # never commit keys
 python pipeline/fetch.py --days 2          # or --days 91 for a full backfill (~40 min, rate limits)
 python pipeline/build.py --refit           # first run / weekly; plain `build.py` reuses fitted stories
-cd site && python -m http.server           # open http://localhost:8000/#NVDA
+cd site && python -m http.server           # open http://localhost:8000/narratives.html#NVDA
 ```
 
 ## Running it (live since 2026-09-26)
