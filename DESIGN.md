@@ -31,26 +31,25 @@ python pipeline/build.py --refit           # first run / weekly; plain `build.py
 cd site && python -m http.server           # open http://localhost:8000/#NVDA
 ```
 
-## Setup still to do
+## Running it (live since 2026-09-26)
 
-1. Repo: `andreaskoul/my-website` (public = unlimited Actions minutes). Scheduled workflows run from the
-   default branch, so the branch holding this code must be the default.
-2. Repo secrets (Settings → Secrets and variables → Actions): `FINNHUB_API_KEY`, `POLYGON_API_KEY`,
-   `OPENROUTER_API_KEY` (all required; OpenRouter serves both the embeddings and the names). Optional repo
-   variables: `OPENROUTER_MODEL` (the LLM for names and events; unset = deepseek/deepseek-v4.1-flash) and
-   `EMBED_MODEL` (unset = openrouter:google/gemini-embedding-2; a plain id such as thenlper/gte-small runs
-   locally and needs sentence-transformers + torch). Changing `EMBED_MODEL` refits every firm from scratch:
-   centroids from two models are not comparable, so story names are not carried over.
-   **The user pasted Finnhub, Polygon and OpenRouter keys into a chat during design — they must be
-   rotated before being stored as secrets.**
-3. Settings → Pages → Source: **GitHub Actions**.
-4. Actions → `update` → Run workflow (days=2, refit=**false**). Fetch catches each firm up to its newest
-   stored article, so the gap since the committed data (2026-09-22) is filled. data/state holds stories
-   fitted with gemini-embedding-2 — a refit now is unnecessary. The first run has no embedding cache, so it
-   embeds ~41k texts through OpenRouter (~1 min at 32 requests in flight, ~$0.40); later runs only embed
-   the day's new articles. The first data commit also re-sorts data/raw once (same rows, stable order).
-5. Expected runtime: daily ~10 min (Polygon's 5 calls/min dominates fetching; events add one LLM call per
-   firm); Mondays refit all firms, ~45 min on a 4-core machine with 3072-d vectors (job timeout 150 min).
+Site: https://andreaskoul.github.io/my-website/ — repo `andreaskoul/my-website` (public), branch `main`
+(the default: scheduled workflows only run from the default branch).
+
+- Workflow `update`: daily 06:15 UTC; Mondays refit all firms. Two jobs: `update` (fetch, build, commit
+  data to the branch) and `deploy` (publish `site/` to Pages from the branch tip). Kept apart so a Pages
+  problem never stops the data update: the first run on `main` was refused whole by the github-pages
+  environment rule, which still named the old branch.
+- Repo secrets: `FINNHUB_API_KEY`, `POLYGON_API_KEY`, `OPENROUTER_API_KEY` (all required; fetch and
+  build stop with a clear message when one is missing). Optional repo variables: `OPENROUTER_MODEL` (unset
+  = deepseek/deepseek-v4.1-flash) and `EMBED_MODEL` (unset = openrouter:google/gemini-embedding-2; a plain
+  id such as thenlper/gte-small runs locally and needs sentence-transformers + torch). Changing
+  `EMBED_MODEL` refits every firm from scratch and story names are not carried over.
+- Settings that must stay: Pages source = GitHub Actions; environment github-pages allows `main`.
+- Fetch catches each firm up to its newest stored article, so missed runs leave no gap.
+- Measured on the first runs: daily ~8 min (fetch ~5-7 min, Polygon's 5 calls/min; embedding ~1 min on a
+  cold cache for 41k texts, ~$0.40; events: one LLM call per firm with new groups). Mondays refit all
+  firms, ~45 min on 4 cores with 3072-d vectors (job timeout 150 min) — watch the first Monday run.
 
 ## Decisions (and why)
 
