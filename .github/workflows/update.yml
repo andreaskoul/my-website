@@ -3,6 +3,9 @@ name: update
 on:
   schedule:
     - cron: "15 6 * * *"          # daily 06:15 UTC; stories are refit on Mondays
+  push:                           # a change to the site's pages or files (e.g. uploading site/thesis.pdf) republishes it
+    branches: [main]
+    paths: ["site/**", "!site/data/**"]
   workflow_dispatch:
     inputs:
       days:

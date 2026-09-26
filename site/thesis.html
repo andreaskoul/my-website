@@ -12,9 +12,15 @@ body{font-family:"Times New Roman",Times,serif}
 .site nav{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px}
 .site a{color:#000}
 .site a[aria-current="page"]{color:#c00000}
+.viewer{display:block;width:100%;height:calc(100vh - 64px);border:0;margin-top:14px}
+.viewer[hidden]{display:none}
 </style>
 </head>
 <body>
 <div class="site"><span class="me">Andreas Koulopoulos</span><nav aria-label="Site"><a href="index.html">home</a><a href="cv.html">cv</a><a href="thesis.html" aria-current="page">thesis</a><a href="narratives.html">narrative landscape</a></nav></div>
+<iframe class="viewer" id="pdf" title="Thesis (PDF)" hidden></iframe>
+<script>   // shows site/thesis.pdf in the browser's own PDF viewer; stays blank until the file exists
+fetch("thesis.pdf", {method: "HEAD"}).then(r => { if (r.ok){ const f = document.getElementById("pdf"); f.src = "thesis.pdf#view=FitH"; f.hidden = false; } }).catch(() => {});
+</script>
 </body>
 </html>
