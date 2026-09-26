@@ -5,15 +5,14 @@
 
 Reproduces build.py's daily path for one firm (clean, de-duplicate, embed with the fitted model, relevance
 and story assignment from data/state), then:
-  - EVENTS: groups of articles that say the same thing within days (cosine x exp(-days apart / 6)), kept,
-    named and merged by one LLM call (OPENROUTER_MODEL, default anthropic/claude-sonnet-5; cached per group).
+  - EVENTS: read from site/data (build.py step 7), matched to articles by text hash.
   - LAYOUT: one region per story, placed near its MDS position on story-centroid distance, area by article
     count, title reserved above it so no two regions or titles overlap; inside a region, UMAP of its articles.
-"now" is pinned to the fitted state's timestamp so the numbers match the committed site/data build.
+"now" is the time of the site/data build, so the window and numbers match it (and its embedding cache).
 Run it in a checkout whose data/state was fitted with the model to compare (EMBED_MODEL=... build.py --refit).
 """
-import hashlib, json, os, re, sys, urllib.request
-from datetime import datetime, timedelta
+import hashlib, json, os, re, sys
+from datetime import datetime, timedelta, timezone
 import numpy as np
 import umap
 
@@ -22,7 +21,7 @@ tk = sys.argv[1] if len(sys.argv) > 1 else "NVDA"
 CFG = json.load(open(f"{ROOT}/config/firms.json")); f = next(x for x in CFG["firms"] if x["ticker"] == tk)
 state = json.load(open(f"{ROOT}/data/state/{tk}.json")); site = json.load(open(f"{ROOT}/site/data/{tk}.json"))
 EMBED = state.get("embed", "thenlper/gte-small")
-now = datetime.fromisoformat(state["fitted"]); start = now - timedelta(days=CFG["window_days"]); week_cut = now - timedelta(days=7)
+now = datetime.strptime(site["updated"], "%Y-%m-%d %H:%M UTC").replace(tzinfo=timezone.utc); start = now - timedelta(days=CFG["window_days"]); week_cut = now - timedelta(days=7)
 norm = lambda t: re.sub(r"[^a-z0-9]+", "", t.lower())[:120]
 unit = lambda A: A / np.maximum(np.linalg.norm(A, axis=-1, keepdims=True), 1e-12)
 monday = lambda d: (d - timedelta(days=d.weekday())).date()
@@ -49,6 +48,8 @@ cp = f"{ROOT}/data/cache/emb-{re.sub(r'[^A-Za-z0-9]+', '-', EMBED).strip('-')}.n
 cache = {}
 if os.path.exists(cp): z = np.load(cp); cache = dict(zip(z["h"].tolist(), z["V"]))
 todo = [r for r in rows if r["h"] not in cache]
+if todo and EMBED.startswith("openrouter:"):
+    raise SystemExit(f"{len(todo)} texts not in {cp}: run pipeline/build.py first, it embeds and caches them")
 if todo:
     from sentence_transformers import SentenceTransformer
     V = SentenceTransformer(EMBED).encode([r["text"] for r in todo], normalize_embeddings=True, batch_size=128)
@@ -74,58 +75,15 @@ top2 = np.sort(S, 1)[:, -2:]
 print(f"{tk}: {len(rows)} articles, {len(R)} relevant (site build says {site['n_articles']}, {site['n_relevant']}); "
       f"silhouette {silhouette_score(X2, hard, metric='cosine'):.3f}, median margin to 2nd story {np.median(top2[:, 1] - top2[:, 0]):.3f}")
 
-# ---- EVENTS: short, dated happenings, found across all of the firm's relevant articles (an earnings call
-#      touches several themes). Two articles are close when they say the same thing AND appear within days
-#      of each other: similarity = cosine x exp(-|days apart| / TAU). Average-linkage groups of MIN_EV+
-#      articles are candidates; an LLM then keeps real events (drops recurring commentary such as "should
-#      you buy X?"), names them and merges groups that are the same event. Names are cached per group.
-from sklearn.cluster import AgglomerativeClustering
-TAU, EV_CUT, MIN_EV = 6.0, 0.30, 8
-days = np.array([(r["dt"] - start).total_seconds() / 86400 for r in R])
-Sim = (X2 @ X2.T) * np.exp(-np.abs(days[:, None] - days[None]) / TAU)
-lab = AgglomerativeClustering(n_clusters=None, metric="precomputed", linkage="average",
-                              distance_threshold=1 - EV_CUT).fit(1 - Sim).labels_
-del Sim
-groups = sorted([np.where(lab == l)[0] for l in set(lab) if (lab == l).sum() >= MIN_EV], key=len, reverse=True)
-tops = [g[np.argsort(-(X2[g] @ unit(X2[g].mean(0))))[:6]] for g in groups]
-OR_KEY, OR_MODEL = os.environ.get("OPENROUTER_API_KEY"), os.environ.get("OPENROUTER_MODEL") or "anthropic/claude-sonnet-5"
-ecp = f"{ROOT}/data/cache/events-{tk}-{re.sub(r'[^A-Za-z0-9]+', '-', EMBED).strip('-')}.json"
-ecache = json.load(open(ecp)) if os.path.exists(ecp) else {}
-gkey = lambda g: hashlib.sha1("|".join(sorted(R[i]["h"] for i in g)).encode()).hexdigest()[:16]
-todo = [j for j, g in enumerate(groups) if gkey(g) not in ecache]
-if todo and OR_KEY:
-    listing = "\n\n".join(f"[{j}] {len(groups[j])} articles, {R[groups[j][0]]['dt']:%b %d}-{max(R[i]['dt'] for i in groups[j]):%b %d}\n"
-                          + "\n".join(f"  - {R[i]['dt']:%b %d}: {R[i]['t']}" for i in tops[j]) for j in todo)
-    prompt = (f"Below are groups of news articles about {f['name']}, each published within a few days. For each group decide "
-              "whether it covers a specific EVENT (something that happened: a report, a deal, a listing, a ruling, a launch, a "
-              "price move on a given day) or is recurring COMMENTARY (buy/sell opinion, predictions, explainers with no new fact). "
-              "For events, give a short event-centric headline name of 3-7 words that states the concrete fact (e.g. \"Q2 revenue "
-              "hits record $96B\", \"SK Hynix lists on Nasdaq\"), not a theme. If two groups are the same event, give the later one "
-              "same_as = the other's id. Reply with JSON only: a list of {\"id\": int, \"event\": bool, \"name\": str, \"same_as\": int|null}.\n\n" + listing)
-    req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions",
-        data=json.dumps({"model": OR_MODEL, "messages": [{"role": "user", "content": prompt}], "temperature": 0}).encode(),
-        headers={"Authorization": f"Bearer {OR_KEY}", "Content-Type": "application/json"})
-    out = json.loads(urllib.request.urlopen(req, timeout=300).read())["choices"][0]["message"]["content"]
-    for v in json.loads(re.search(r"\[.*\]", out, re.S).group(0)):
-        j = int(v["id"]); sa = v.get("same_as")
-        ecache[gkey(groups[j])] = dict(event=bool(v["event"]), name=v["name"].strip()[:70],
-                                       same_as=gkey(groups[int(sa)]) if sa is not None and 0 <= int(sa) < len(groups) else None)
-    os.makedirs(os.path.dirname(ecp), exist_ok=True); json.dump(ecache, open(ecp, "w"), indent=1)
-elif todo: print("no OPENROUTER_API_KEY: events named by their most typical headline")
+# ---- EVENTS: as detected, judged and named by build.py (site/data events, matched by article hash)
+pos, sid = {r["h"]: i for i, r in enumerate(R)}, {s["id"]: k for k, s in enumerate(stories)}
 ev_of = -np.ones(len(R), int); events = []
-root = lambda key: root(ecache[key]["same_as"]) if ecache.get(key, {}).get("same_as") in ecache and ecache[key]["same_as"] != key else key
-by_root = {}
-for j, g in enumerate(groups):
-    v = ecache.get(gkey(g), dict(event=True, name=R[tops[j][0]]["t"][:70]))
-    if not v["event"]: continue
-    by_root.setdefault(root(gkey(g)), []).append(j)
-for rk, js in by_root.items():
-    g = np.concatenate([groups[j] for j in js]); ev_of[g] = len(events)
-    dts = sorted(R[i]["dt"] for i in g)
-    events.append(dict(name=ecache.get(rk, {}).get("name") or R[tops[js[0]][0]]["t"][:70], n=len(g),
-                       k=int(np.bincount(hard[g]).argmax()), start=dts[0].date().isoformat(), end=dts[-1].date().isoformat(),
-                       peak=max(set(d.date() for d in dts), key=[d.date() for d in dts].count).isoformat()))
-print(f"events: {len(groups)} candidate groups, {len(events)} events after the LLM pass, covering {(ev_of >= 0).mean():.0%} of articles")
+for e in site.get("events", []):
+    m = [pos[h] for h in e["h"] if h in pos]
+    if not m: continue
+    ev_of[m] = len(events)
+    events.append(dict(name=e["name"], n=len(m), k=sid.get(e["story"], int(np.bincount(hard[m]).argmax())), start=e["start"], end=e["end"]))
+print(f"events: {len(events)} from build.py, covering {(ev_of >= 0).mean():.0%} of articles")
 
 # ---- 2D: one region per story, placed by MDS on story-centroid distance, area proportional to article count,
 #      pushed apart until no two overlap; inside each region its own articles laid out by UMAP (cosine).

@@ -36,7 +36,7 @@ cd site && python -m http.server           # open http://localhost:8000/#NVDA
 1. Create a **public** GitHub repo `narratives` (public = unlimited Actions minutes) and push this folder.
 2. Repo secrets: `FINNHUB_API_KEY`, `POLYGON_API_KEY`, `OPENROUTER_API_KEY` (all required; OpenRouter
    serves both the embeddings and the story names). Optional repo variables (Settings → Secrets and
-   variables → Actions → Variables): `OPENROUTER_MODEL` (the naming LLM; unset = anthropic/claude-sonnet-5)
+   variables → Actions → Variables): `OPENROUTER_MODEL` (the LLM for names and events; unset = deepseek/deepseek-v4.1-flash)
    and `EMBED_MODEL` (unset = openrouter:google/gemini-embedding-2; a plain id such as thenlper/gte-small
    runs locally). Changing `EMBED_MODEL` refits every firm from scratch: centroids from two models are not
    comparable, so story names are not carried over.
@@ -45,7 +45,7 @@ cd site && python -m http.server           # open http://localhost:8000/#NVDA
 3. Settings → Pages → Source: **GitHub Actions**.
 4. Actions → `update` → Run workflow (days=2, refit=**false**). data/raw already holds the
    13-week backfill (to 2026-09-22) and data/state holds stories fitted with gemini-embedding-2 and
-   named by Claude Sonnet 5 — a refit now is unnecessary. The first run has no embedding cache, so it
+   named by Claude Sonnet 5 (new stories and events since: DeepSeek v4.1 Flash) — a refit now is unnecessary. The first run has no embedding cache, so it
    embeds ~41k texts through OpenRouter (~1 min at 32 requests in flight, ~$0.40); later runs only
    embed the day's new articles. Check the deployed page, then the next scheduled run.
 5. Expected daily runtime after that: ~5-8 min (Polygon's 5 calls/min dominates fetching).
@@ -119,7 +119,10 @@ content breadth (effective number of feeds); correlation with firm-neighbourhood
 cosine, threshold 0.5); matches keep id/name/colour/history. Only new stories get named.
 
 **Naming.** New stories are named by the OpenRouter model in `OPENROUTER_MODEL` (default
-anthropic/claude-sonnet-5) from their 10 most typical headlines; keyword fallback when no key is set.
+deepseek/deepseek-v4.1-flash since 2026-09-26; Claude Sonnet 5 named the stories of the Gemini refit) from
+their 10 most typical headlines; keyword fallback when no key is set. Calls run with reasoning off:
+DeepSeek v4.1 Flash reasons by default (~300 hidden tokens even to name one event, ~6x slower) and the
+names were as good without it.
 Names are kept across refits by the identity matching. (The hand-written names of the gte-small fit were
 dropped with the switch to Gemini: the committed state was refit and LLM-named on 2026-09-23.)
 
@@ -133,6 +136,24 @@ per firm. An emerging story claims every article within its radius, even one in 
 At the next refit it either matches a fitted story (and keeps its id and name) or is retired to
 `state.past`; retired stories that come back get their id and name back. **Crash-tested only** (a
 stand-in embedder, all paths: daily, refit, daily after refit): thresholds still need a real-data check.
+
+**Events (build.py step 7, every run).** Stories are themes that run for weeks; events are the dated
+happenings inside them (an earnings call, a deal, a listing, a probe). Found on the firm's relevant
+articles over the whole window, not per story, because one event (earnings) touches several themes.
+Two articles are close when they say the same thing AND appear within days of each other: similarity =
+cosine x exp(-days apart / 6). Average-linkage groups (cut 0.30) of 8+ articles are candidates. Plain
+semantic clustering (HDBSCAN within a story) was tried first and found no short-lived groups at all —
+the uniform summary register dominates; the time factor is what makes events appear. About half the
+candidates are recurring commentary ("should you buy SpaceX?", predictions), so one LLM call per 40 new
+groups sorts event vs commentary, names events (3-7 words stating the fact) and merges groups that are the
+same event as each other or as a known one. Identity: state["events"] keeps every judged group (kept or
+rejected) with its article hashes; a group sharing half its articles with a known one takes its verdict,
+id and name, so growing events are never re-sent or renamed (a rerun sends 0 groups). Events whose
+articles all leave the window are dropped. On 2026-09-26: 253 events across the 20 firms (NVDA 32, AAPL
+34, GOOGL 31; TSM, JPM, WMT, BRK.B 1-3, since 8 articles is a lot for a small feed — a size-scaled
+minimum is untested). Stored as article hashes, not centroids: a 3072-d centroid per event would add
+megabytes to the committed state daily. The site shows this week's events (then the latest before
+them), marks each story's events on its chart line (◇) and in its week-by-week timeline.
 
 **Design (user's explicit spec):** dead simple — white background, black and red text only,
 browser-default fonts (Times New Roman, default monospace), no cards/shadows/rounded corners.
@@ -158,7 +179,8 @@ Red marks the selected story and positive momentum. Keep it that way.
    content that passed both lift tests because that firm's feed carries more of it than average —
    ETF pieces (NVDA "Vanguard ETF Investing", AAPL, LLY, TSM, BRK.B) and market roundups (CRM "Dow
    Jones Daily Movers", INTC "Tech Stocks Roundup") and one emerging story (NVDA "Bitcoin & Crypto Market
-   Trends"). The fit is also sensitive to the window: NVDA
+   Trends"). Two more emerging ones appeared on the 2026-09-26 run: GOOGL "Alluvium Capital
+   Portfolio" (a fund's holdings) and AMZN "Big Tech Stock Picks". The fit is also sensitive to the window: NVDA
    refit 16 hours apart kept 3 vs 4 of 8 anchors, and only the later fit has the Vanguard story. A third test is needed; untested idea: genre is uniformly
    present in nearly every feed while a theme concentrates in a few.
 

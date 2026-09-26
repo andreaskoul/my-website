@@ -33,10 +33,16 @@ Per firm, in order:
      far more common in those days than in the weeks before (so a topic that was always there but
      not split out by the fit does not count). At most MAX_LIVE per firm. It stays a story until
      the next refit decides whether it has become one of the fitted stories.
-  7. NAMES: only new stories are named -- by OPENROUTER_MODEL if it and OPENROUTER_API_KEY are
-     set, otherwise by their most distinctive keywords.
-  8. EXPORT: this week's articles per story, weekly share series, one representative
-     headline per story per week.
+  7. EVENTS (every run): short, dated happenings inside the stories -- an earnings call, a deal, a
+     listing. Articles are close when they say the same thing AND appear within days of each other;
+     groups of EV_MIN+ such articles are candidates. The LLM keeps real events (drops recurring
+     commentary: buy/sell opinion, predictions, explainers), names them and merges groups that are the
+     same event. Known events are recognised by their articles, so a growing event keeps its id and
+     name and is not sent to the LLM again.
+  8. NAMES: only new stories and new events are named -- by OPENROUTER_MODEL if it and
+     OPENROUTER_API_KEY are set; stories fall back to their most distinctive keywords.
+  9. EXPORT: this week's articles per story, weekly share series, one representative
+     headline per story per week, and the events with their articles.
 """
 import argparse, collections, hashlib, json, math, os, re, sys, time, urllib.request
 from datetime import datetime, timedelta, timezone
@@ -51,9 +57,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG = json.load(open(f"{ROOT}/config/firms.json"))
 K1, BETA, STABLE, NEARDUP, MATCH = 8, 20.0, 0.85, 0.95, 0.5
 EMERGE_DAYS, MIN_EMERGE, OUT_Q, MAX_LIVE = 14, 10, 0.10, 3
+EV_TAU, EV_CUT, EV_MIN, EV_SAME = 6.0, 0.30, 8, 0.5     # days, similarity cut, min articles, overlap to be the same event
 EMBED = os.environ.get("EMBED_MODEL") or "openrouter:google/gemini-embedding-2"   # the committed state was fitted with this
 OR_KEY = os.environ.get("OPENROUTER_API_KEY")
-OR_MODEL = os.environ.get("OPENROUTER_MODEL") or "anthropic/claude-sonnet-5"      # names new stories
+OR_MODEL = os.environ.get("OPENROUTER_MODEL") or "deepseek/deepseek-v4.1-flash"   # names stories, judges and names events
 now = datetime.now(timezone.utc)
 start = now - timedelta(days=CFG["window_days"])
 week_cut = now - timedelta(days=7)
@@ -131,17 +138,21 @@ DIM = len(next(iter(cache.values()))) if cache else 384
 STOP = set("""the a an and or of to in on for with at by from as is are was were be been it its this that these those has
 have had will would can could not but than into over after about more most new says said stock stocks shares inc corp company
 companies year years today week why what how here heres your you buy should just now up down billion million report reports""".split())
+def chat(prompt):
+    """One OpenRouter chat completion with OR_MODEL; returns the reply text."""
+    req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions",
+        data=json.dumps({"model": OR_MODEL, "messages": [{"role": "user", "content": prompt}], "temperature": 0.2,
+                         "reasoning": {"enabled": False}}).encode(),       # naming and sorting need no thinking; with it
+        headers={"Authorization": f"Bearer {OR_KEY}", "Content-Type": "application/json"})   # DeepSeek is ~6x slower
+    return json.loads(urllib.request.urlopen(req, timeout=180).read())["choices"][0]["message"]["content"]
+
 def name_story(texts, firm):
     if OR_KEY and OR_MODEL:
         prompt = (f"These news headlines about {firm} belong to one ongoing story. Give it a short, plain name (2-5 words, "
                   f"no quotes) and a one-sentence description of what the story is about. Reply as JSON "
                   f'{{"name":"...","blurb":"..."}}.\n\n' + "\n".join("- " + t for t in texts[:10]))
         try:
-            req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions",
-                data=json.dumps({"model": OR_MODEL, "messages": [{"role": "user", "content": prompt}], "temperature": 0.2}).encode(),
-                headers={"Authorization": f"Bearer {OR_KEY}", "Content-Type": "application/json"})
-            out = json.loads(urllib.request.urlopen(req, timeout=60).read())["choices"][0]["message"]["content"]
-            j = json.loads(re.search(r"\{.*\}", out, re.S).group(0))
+            j = json.loads(re.search(r"\{.*\}", chat(prompt), re.S).group(0))
             return j["name"].strip()[:60], j["blurb"].strip()[:200], "llm"
         except Exception as e:
             print(f"   naming via OpenRouter failed ({e}); using keywords", flush=True)
@@ -252,7 +263,8 @@ for f in CFG["firms"]:
                 for s in old + past if s["id"] not in ids][:100]
         state = dict(fitted=now.isoformat(), embed=EMBED, K=K, next_id=nxt, mu1=np.round(mu1, 5).tolist(),
                      C1=np.round(C1, 5).tolist(), keep1=keep1, mu2=np.round(mu2, 5).tolist(),
-                     C2=np.round(C2, 5).tolist(), stories=stories, past=past)
+                     C2=np.round(C2, 5).tolist(), stories=stories, past=past,
+                     events=(state or {}).get("events", []), next_event=(state or {}).get("next_event", 0))
         json.dump(state, open(sp, "w"))
         print(f"{tk}: refit  K={K}  kept anchors {sum(keep1)}/{K1}", flush=True)
 
@@ -335,9 +347,75 @@ for f in CFG["firms"]:
                         series=series, evolution=evo,
                         latest=[dict(t=R[i]["t"], d=R[i]["desc"][:260], p=R[i]["publisher"],
                                      date=R[i]["dt"].strftime("%b %d"), u=R[i]["url"]) for i in lat]))
+
+    # ---- EVENTS: similarity = cosine x exp(-days apart / EV_TAU); average-linkage groups of EV_MIN+ articles.
+    #      A group sharing at least EV_SAME of its articles with a known event (state["events"], kept or
+    #      rejected) takes that one's verdict, id and name; only the rest go to the LLM, in one call per 40.
+    day = np.array([(r["dt"] - start).total_seconds() / 86400 for r in R])
+    lab = AgglomerativeClustering(n_clusters=None, metric="precomputed", linkage="average", distance_threshold=1 - EV_CUT
+                                  ).fit(1 - (X2 @ X2.T) * np.exp(-np.abs(day[:, None] - day[None]) / EV_TAU)).labels_
+    groups = [g for g in (np.where(lab == l)[0] for l in set(lab)) if len(g) >= EV_MIN]
+    live_h = {r["h"] for r in R}
+    known = [dict(e, h=[h for h in e["h"] if h in live_h]) for e in state.get("events", [])]
+    known = [e for e in known if e["h"]]                                      # events that left the window are dropped
+    gh = [{R[i]["h"] for i in g} for g in groups]
+    owner = [next((e for e in known if len(hs & set(e["h"])) >= EV_SAME * len(hs)), None) for hs in gh]
+    todo = [j for j in range(len(groups)) if owner[j] is None]
+    if todo and OR_KEY and OR_MODEL:
+        central = lambda g: g[np.argsort(-(X2[g] @ unit(X2[g].mean(0))))]
+        for b in range(0, len(todo), 40):
+            js = todo[b:b + 40]
+            kn = [e for e in known if e["event"]][-60:]
+            prompt = (f"Below are groups of news articles about {firm} (or its industry), each group published within a few days. "
+                "For each group decide whether it covers a specific EVENT -- something that happened: a report or earnings, a deal, "
+                "a listing, a lawsuit or ruling, a launch, an executive statement, a big price move on given days -- or recurring "
+                "COMMENTARY with no new fact (buy/sell opinion, predictions, explainers, lists of stocks). For events give a short "
+                "headline-style name of 3-7 words stating the concrete fact (e.g. \"Q2 revenue hits record $96B\", \"SK Hynix lists "
+                "on Nasdaq\"), not a theme. If a group is the same event as a known event or as another group, set same_as to that "
+                "id. Reply with JSON only: a list of {\"id\": \"g..\", \"event\": true|false, \"name\": \"...\", \"same_as\": \"e..\"|\"g..\"|null}.\n\n"
+                + ("Known events:\n" + "\n".join(f"[e{e['id']}] {e['name']} ({e['start']})" for e in kn) + "\n\n" if kn else "")
+                + "\n\n".join(f"[g{j}] {len(groups[j])} articles, {R[groups[j][day[groups[j]].argmin()]]['dt']:%b %d}-"
+                                f"{R[groups[j][day[groups[j]].argmax()]]['dt']:%b %d}\n"
+                                + "\n".join(f"  - {R[i]['dt']:%b %d}: {R[i]['t']}" for i in central(groups[j])[:6]) for j in js))
+            try:
+                j = json.loads(re.search(r"\[.*\]|\{.*\}", chat(prompt), re.S).group(0))       # a list, or one object for one group
+                ans = {str(v["id"]).strip("[]"): v for v in (j if isinstance(j, list) else [j])}
+            except Exception as e:
+                print(f"   events via OpenRouter failed ({e}); left for the next run", flush=True); continue
+            by_e = {f"e{e['id']}": e for e in known}
+            for j in sorted(js, key=lambda j: (ans.get(f"g{j}") or {}).get("same_as") is not None):   # new events first
+                v = ans.get(f"g{j}")
+                if not v: continue
+                sa = str(v.get("same_as") or "")
+                tgt = by_e.get(sa) or (owner[int(sa[1:])] if sa[1:].isdigit() and sa.startswith("g") and int(sa[1:]) < len(owner) else None)
+                if tgt is None:
+                    d0 = R[groups[j][day[groups[j]].argmin()]]["dt"].date().isoformat()
+                    tgt = dict(id=state.get("next_event", 0), name=str(v.get("name") or "")[:80].strip(), event=bool(v.get("event")),
+                               start=d0, h=[]); state["next_event"] = tgt["id"] + 1
+                    known.append(tgt); by_e[f"e{tgt['id']}"] = tgt
+                owner[j] = tgt
+    for j, e in enumerate(owner):
+        if e is not None: e["h"] = sorted(set(e["h"]) | gh[j])
+    state["events"] = known
+    json.dump(state, open(sp, "w"))
+    pos = {r["h"]: i for i, r in enumerate(R)}
+    events = []
+    for e in known:
+        m = np.array([pos[h] for h in e["h"]])
+        if not e["event"] or len(m) < EV_MIN: continue
+        m = m[np.argsort(-(X2[m] @ unit(X2[m].mean(0))))]                    # most typical first
+        d = sorted(R[i]["dt"] for i in m)
+        events.append(dict(id=e["id"], name=e["name"], story=stories[int(np.bincount(hard[m]).argmax())]["id"], n=len(m),
+                           latest_n=int(recent[m].sum()), start=d[0].date().isoformat(), end=d[-1].date().isoformat(),
+                           weeks={w.isoformat(): int((wk[m] == w).sum()) for w in weeks if (wk[m] == w).any()},
+                           top=[dict(t=R[i]["t"], p=R[i]["publisher"], date=R[i]["dt"].strftime("%b %d"), u=R[i]["url"]) for i in m[:3]],
+                           h=[R[i]["h"] for i in m]))
+    events.sort(key=lambda e: e["end"], reverse=True)
+    print(f"{tk}: {len(groups)} candidate groups ({len(todo)} new), {len(events)} events", flush=True)
+
     doc = dict(ticker=tk, name=firm, updated=now.strftime("%Y-%m-%d %H:%M UTC"), weeks=[w.isoformat() for w in weeks],
                latest_from=week_cut.strftime("%b %d"), latest_to=now.strftime("%b %d"),
-               n_articles=len(rows), n_relevant=len(R), stories=out)
+               n_articles=len(rows), n_relevant=len(R), stories=out, events=events)
     json.dump(doc, open(f"{ROOT}/site/data/{tk}.json", "w"), ensure_ascii=False)
     top = max(out, key=lambda s: s["latest_n"]) if out else None
     index.append(dict(ticker=tk, name=firm, top=top["name"] if top else ""))
