@@ -12,15 +12,36 @@ body{font-family:"Times New Roman",Times,serif}
 .site nav{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px}
 .site a{color:#000}
 .site a[aria-current="page"]{color:#c00000}
-.viewer{display:block;width:100%;height:calc(100vh - 64px);border:0;margin-top:14px}
-.viewer[hidden]{display:none}
+.pages{max-width:860px;margin:14px auto 40px;padding:0 18px}
+.pages canvas{display:block;width:100%;height:auto;margin:0 0 14px;border:1px solid rgba(0,0,0,.18);box-sizing:border-box;background:#fff}
 </style>
 </head>
 <body>
 <div class="site"><span class="me">Andreas Koulopoulos</span><nav aria-label="Site"><a href="index.html">home</a><a href="cv.html">cv</a><a href="thesis.html" aria-current="page">thesis</a><a href="narratives.html">narrative landscape</a></nav></div>
-<iframe class="viewer" id="pdf" title="Thesis (PDF)" hidden></iframe>
-<script>   // shows site/thesis.pdf in the browser's own PDF viewer; stays blank until the file exists
-fetch("thesis.pdf", {method: "HEAD"}).then(r => { if (r.ok){ const f = document.getElementById("pdf"); f.src = "thesis.pdf#view=FitH"; f.hidden = false; } }).catch(() => {});
+<div class="pages" id="pages"></div>
+<script type="module">
+// site/thesis.pdf drawn page by page with PDF.js (site/vendor/pdfjs: v6.3.289, legacy build — the modern one needs very new JavaScript), so the page scrolls like any
+// other on every device (phone browsers show only the first page of a PDF in an <iframe>). A page is drawn
+// when it comes near the screen; the box for each page is sized first so the scrollbar is right from the start.
+import * as pdfjs from "./vendor/pdfjs/pdf.min.mjs";
+pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.min.mjs";
+const box = document.getElementById("pages");
+try {
+  const pdf = await pdfjs.getDocument({url: "thesis.pdf"}).promise;
+  const first = (await pdf.getPage(1)).getViewport({scale: 1});
+  const draw = async (canvas) => {
+    const page = await pdf.getPage(+canvas.dataset.n), v1 = page.getViewport({scale: 1});
+    const v = page.getViewport({scale: box.clientWidth / v1.width * Math.min(2, window.devicePixelRatio || 1)});
+    canvas.width = v.width; canvas.height = v.height;
+    await page.render({canvas, viewport: v}).promise;
+  };
+  const seen = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ seen.unobserve(e.target); draw(e.target); } }), {rootMargin: "1200px 0px"});
+  for (let n = 1; n <= pdf.numPages; n++){
+    const c = document.createElement("canvas"); c.dataset.n = n; c.setAttribute("aria-label", "Page " + n);
+    c.width = first.width; c.height = first.height;          // placeholder size until drawn
+    box.appendChild(c); seen.observe(c);
+  }
+} catch (e) { /* no thesis.pdf yet: the page stays blank */ }
 </script>
 </body>
 </html>
