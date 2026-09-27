@@ -23,9 +23,10 @@ Per firm, in order:
   4. STORIES: refit on the relevant articles; K = the finest granularity that stays stable
      under resampling (ARI >= STABLE). No K is "true" -- this is the stable level of detail.
   5. IDENTITY: new stories are matched one-to-one to last week's by meaning; matches keep their
-     id, name and history, so a story does not get renamed or recoloured by a refit.
-     Stories that lose their match are kept in state["past"], so a story that comes back gets its
-     old id and name back.
+     id and history, and their name unless the story's centre moved far (cosine < RENAME): then the
+     narrative has changed and it is renamed, the old name kept in its "was" list.
+     Stories that lose their match are retired to state["past"] (a story that comes back gets its
+     old id and name back); they keep their articles, see MEMBERSHIP.
   6. EMERGING (every run, not only on refit days): the last EMERGE_DAYS of the firm's feed, minus
      what the current stories already explain, is grouped; a group becomes a new story when it is
      at least as tight as a typical story, runs over 2+ days, and passes the same two relevance
@@ -41,6 +42,9 @@ Per firm, in order:
      name and is not sent to the LLM again.
   8. NAMES: only new stories and new events are named -- by OPENROUTER_MODEL if it and
      OPENROUTER_API_KEY are set; stories fall back to their most distinctive keywords.
+  MEMBERSHIP (every run): an article joins its nearest story only if it is at least as close as the
+     story's MEMBER_Q-quantile member, else no story; written once to state["assign"], never rewritten.
+     A story is alive in a week when it has ALIVE_MIN+ articles and ALIVE_PEAK+ of its peak weekly share.
   9. EXPORT: this week's articles per story, weekly share series, one representative
      headline per story per week, and the events with their articles.
  10. MAP (site/data/map/<TICKER>.json): every relevant article placed in 2D. One region per story, near
@@ -58,7 +62,9 @@ ap = argparse.ArgumentParser(); ap.add_argument("--refit", action="store_true");
 args = ap.parse_args()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG = json.load(open(f"{ROOT}/config/firms.json"))
-K1, BETA, STABLE, NEARDUP, MATCH = 8, 20.0, 0.85, 0.95, 0.5
+K1, STABLE, NEARDUP, MATCH = 8, 0.85, 0.95, 0.5
+MEMBER_Q, ALIVE_MIN, ALIVE_PEAK = 0.25, 3, 0.2   # membership cut; alive in a week: 3+ articles and 20%+ of its peak share
+RENAME = 0.8    # a refit match this far from last week's centroid (cosine below) has drifted: it is renamed
 EMERGE_DAYS, MIN_EMERGE, OUT_Q, MAX_LIVE = 14, 10, 0.10, 3
 EV_TAU, EV_CUT, EV_MIN, EV_SAME = 6.0, 0.30, 8, 0.5     # days, similarity cut, min articles, overlap to be the same event
 EMBED = os.environ.get("EMBED_MODEL") or "openrouter:google/gemini-embedding-2"   # the committed state was fitted with this
@@ -245,12 +251,12 @@ for f in CFG["firms"]:
         # identity: match to last fit's stories by meaning (in the new centred space), then to retired ones
         same = state is not None and fitted_with(state) == EMBED    # centroids from another model are not comparable
         old, past = (state["stories"], state.get("past", [])) if same else ([], [])
-        ids, nxt = [None] * K, (state["next_id"] if state else 0)
+        ids, nxt, close = [None] * K, (state["next_id"] if state else 0), [1.0] * K
         if old:
             Oc = unit(np.array([s["centroid"] for s in old]) - mu2)
             Sim = C2 @ Oc.T; r_i, c_i = linear_sum_assignment(-Sim)
             for a, b in zip(r_i, c_i):
-                if Sim[a, b] >= MATCH: ids[a] = old[b]["id"]
+                if Sim[a, b] >= MATCH: ids[a], close[a] = old[b]["id"], float(Sim[a, b])
         for k in range(K):
             if ids[k] is None and past:
                 sims = unit(np.array([p["centroid"] for p in past]) - mu2) @ C2[k]; b = int(sims.argmax())
@@ -258,19 +264,26 @@ for f in CFG["firms"]:
         stories = []
         for k in range(K):
             prev = next((s for s in old + past if s["id"] == ids[k]), None)
-            if prev: nm, bl, src = prev["name"], prev["blurb"], prev["name_src"]
+            was = prev.get("was", []) if prev else []
+            if prev and close[k] < RENAME:                  # same story, but its centre moved: the narrative has changed
+                idx = np.where(h2 == k)[0]; top = idx[np.argsort(-(X2[idx] @ C2[k]))[:10]]
+                nm, bl, src = name_story([rows[np.where(rel)[0][i]]["t"] for i in top], firm)
+                if nm != prev["name"]: was = was + [dict(name=prev["name"], until=now.date().isoformat())]
+                print(f"   {tk}: '{prev['name']}' drifted (cos {close[k]:.2f}) -> '{nm}'", flush=True)
+            elif prev: nm, bl, src = prev["name"], prev["blurb"], prev["name_src"]
             else:
                 idx = np.where(h2 == k)[0]; top = idx[np.argsort(-(X2[idx] @ C2[k]))[:10]]
                 nm, bl, src = name_story([rows[np.where(rel)[0][i]]["t"] for i in top], firm)
                 ids[k] = nxt; nxt += 1
             stories.append(dict(id=ids[k], name=nm, blurb=bl, name_src=src, centroid=np.round(raw_c[k], 5).tolist(),
-                                born=prev["born"] if prev else now.date().isoformat()))
-        past = [{k: s[k] for k in ("id", "name", "blurb", "name_src", "centroid", "born")}
+                                born=prev["born"] if prev else now.date().isoformat(), was=was))
+        past = [{k: s[k] for k in ("id", "name", "blurb", "name_src", "centroid", "born") } | {"was": s.get("was", [])}
                 for s in old + past if s["id"] not in ids][:100]
         state = dict(fitted=now.isoformat(), embed=EMBED, K=K, next_id=nxt, mu1=np.round(mu1, 5).tolist(),
                      C1=np.round(C1, 5).tolist(), keep1=keep1, mu2=np.round(mu2, 5).tolist(),
                      C2=np.round(C2, 5).tolist(), stories=stories, past=past,
-                     events=(state or {}).get("events", []), next_event=(state or {}).get("next_event", 0))
+                     events=(state or {}).get("events", []), next_event=(state or {}).get("next_event", 0),
+                     assign=state.get("assign", {}) if same else {})    # written-once membership survives a refit
         json.dump(state, open(sp, "w"))
         print(f"{tk}: refit  K={K}  kept anchors {sum(keep1)}/{K1}", flush=True)
 
@@ -330,26 +343,48 @@ for f in CFG["firms"]:
         print(f"{tk}: new story '{nm}' ({len(gi)} articles over {len({rows[i]['dt'].date() for i in gi})} days)", flush=True)
     if found: json.dump(state, open(sp, "w"))
 
-    # ---- assign every article in the window with the stored model
+    # ---- MEMBERSHIP, written once. An article joins its nearest story only if it is at least as close as that
+    #      story's MEMBER_Q-quantile member (an emerging story: its own radius); otherwise it is in no story (-1),
+    #      so a story is not padded with stray articles in weeks it is not running. The story is stored in
+    #      state["assign"] the first time and never re-assigned: when a refit retires a story, it keeps its
+    #      articles and its name (state["past"]) and stays on the timeline. Only articles in no story can
+    #      still be claimed, by a later story.
     Sall, rel = claims()
     R = [rows[i] for i in np.where(rel)[0]]; X2 = unit(X[rel] - mu2)
     S = Sall[rel]; hard = S.argmax(1)
-    P = np.exp(BETA * (S - S.max(1, keepdims=True))); P /= P.sum(1, keepdims=True)
+    for k, st in enumerate(stories):
+        if not st.get("radius") and "r" not in st:                       # fitted story: cut from its current members
+            st["r"] = round(float(np.quantile(S[hard == k, k], MEMBER_Q)), 4) if (hard == k).any() else 1.0
+    thr = np.array([st.get("radius") or st["r"] for st in stories])
+    live_h = {r["h"] for r in R}
+    assign = {h: v for h, v in state.get("assign", {}).items() if h in live_h}
+    for i, r in enumerate(R):
+        if assign.get(r["h"], -1) == -1:
+            j = hard[i]; assign[r["h"]] = stories[j]["id"] if S[i, j] >= thr[j] else -1
+    state["assign"] = assign
+    aid = np.array([assign[r["h"]] for r in R])
+    by_id = {st["id"]: st for st in state.get("past", [])} | {st["id"]: st for st in stories}
+    cur = [st["id"] for st in stories]
+    ex = [by_id[i] for i in cur + sorted({a for a in aid if a != -1 and a not in cur}) if i in by_id]   # + retired, with articles
+    own = np.array([{st["id"]: k for k, st in enumerate(ex)}.get(a, -1) for a in aid])
+    SE = X2 @ unit(np.array([st["centroid"] for st in ex]) - mu2).T                                      # typicality, per story
     wk = np.array([monday(r["dt"]) for r in R]); weeks = sorted(set(wk))
     recent = np.array([r["dt"] >= week_cut for r in R])
     out = []
-    for k, s in enumerate(stories):
-        series = [dict(week=w.isoformat(), n=int(((hard == k) & (wk == w)).sum()),
-                       share=round(float(P[wk == w, k].sum() / max((wk == w).sum(), 1)), 4)) for w in weeks]
+    for k, st in enumerate(ex):
+        n_w = [int(((own == k) & (wk == w)).sum()) for w in weeks]
+        series = [dict(week=w.isoformat(), n=n, share=round(n / max(int((wk == w).sum()), 1), 4)) for w, n in zip(weeks, n_w)]
         evo = []
         for w in weeks:
-            m = np.where((hard == k) & (wk == w))[0]
+            m = np.where((own == k) & (wk == w))[0]
             if len(m) < 3: continue
             c = unit(X2[m].mean(0)); j = m[np.argmax(X2[m] @ c)]
             evo.append(dict(week=w.isoformat(), n=len(m), h=R[j]["t"], p=R[j]["publisher"], u=R[j]["url"]))
-        lat = sorted(np.where((hard == k) & recent)[0], key=lambda i: -S[i, k])[:10]
-        out.append(dict(id=s["id"], name=s["name"], blurb=s["blurb"], n=int((hard == k).sum()), latest_n=int(((hard == k) & recent).sum()),
-                        new=s["name_src"] != "manual" and s["born"] >= since.date().isoformat(),
+        lat = sorted(np.where((own == k) & recent)[0], key=lambda i: -SE[i, k])[:10]
+        out.append(dict(id=st["id"], name=st["name"], blurb=st["blurb"], n=int((own == k).sum()), latest_n=int(((own == k) & recent).sum()),
+                        new=st["name_src"] != "manual" and st["born"] >= since.date().isoformat(), retired=st["id"] not in cur,
+                        alive=[n >= ALIVE_MIN and v["share"] >= ALIVE_PEAK * max(x["share"] for x in series) for n, v in zip(n_w, series)],
+                        was=st.get("was", []),                           # earlier names, when the story drifted
                         series=series, evolution=evo,
                         latest=[dict(t=R[i]["t"], d=R[i]["desc"][:260], p=R[i]["publisher"],
                                      date=R[i]["dt"].strftime("%b %d"), u=R[i]["url"]) for i in lat]))
@@ -361,7 +396,6 @@ for f in CFG["firms"]:
     lab = AgglomerativeClustering(n_clusters=None, metric="precomputed", linkage="average", distance_threshold=1 - EV_CUT
                                   ).fit(1 - (X2 @ X2.T) * np.exp(-np.abs(day[:, None] - day[None]) / EV_TAU)).labels_
     groups = [g for g in (np.where(lab == l)[0] for l in set(lab)) if len(g) >= EV_MIN]
-    live_h = {r["h"] for r in R}
     known = [dict(e, h=[h for h in e["h"] if h in live_h]) for e in state.get("events", [])]
     known = [e for e in known if e["h"]]                                      # events that left the window are dropped
     gh = [{R[i]["h"] for i in g} for g in groups]
@@ -411,7 +445,9 @@ for f in CFG["firms"]:
         if not e["event"] or len(m) < EV_MIN: continue
         m = m[np.argsort(-(X2[m] @ unit(X2[m].mean(0))))]                    # most typical first
         d = sorted(R[i]["dt"] for i in m)
-        events.append(dict(id=e["id"], name=e["name"], story=stories[int(np.bincount(hard[m]).argmax())]["id"], n=len(m),
+        o = own[m][own[m] >= 0]                                               # the story most of its articles are in
+        events.append(dict(id=e["id"], name=e["name"], n=len(m),
+                           story=ex[int(np.bincount(o).argmax())]["id"] if len(o) else stories[int(np.bincount(hard[m]).argmax())]["id"],
                            latest_n=int(recent[m].sum()), start=d[0].date().isoformat(), end=d[-1].date().isoformat(),
                            weeks={w.isoformat(): int((wk[m] == w).sum()) for w in weeks if (wk[m] == w).any()},
                            top=[dict(t=R[i]["t"], p=R[i]["publisher"], date=R[i]["dt"].strftime("%b %d"), u=R[i]["url"]) for i in m[:3]],
@@ -424,14 +460,14 @@ for f in CFG["firms"]:
     #      every region shrinks and the placement starts over. Then UMAP inside each region, with each
     #      article's distance from the centre replaced by its rank, so a dense core fills its region.
     import umap                                                            # slow to import; only needed here
-    MW, MH, PADY = 1000, 540 + 80 * max(0, len(stories) - 6), 20
-    cnt = np.bincount(hard, minlength=len(stories)); live_k = np.where(cnt > 0)[0]
-    C = unit(np.array([X2[hard == k].mean(0) for k in live_k])); n = len(live_k)
+    cnt = np.bincount(own[own >= 0], minlength=len(ex)); live_k = np.where(cnt > 0)[0]
+    MW, MH, PADY = 1000, 540 + 80 * max(0, len(live_k) - 6), 20
+    C = unit(np.array([X2[own == k].mean(0) for k in live_k])); n = len(live_k)
     J = np.eye(n) - 1 / n; w_, V_ = np.linalg.eigh(-0.5 * J @ ((1 - C @ C.T) ** 2) @ J)
     target = V_[:, -2:] * np.sqrt(np.maximum(w_[-2:], 1e-9))
     target = (target - target.mean(0)) / (np.abs(target).max() + 1e-9) * [MW * .4, MH * .4] + [MW / 2, MH / 2]
     fs = np.array([15 + math.sqrt(max([v["n"] for v in out[k]["series"]] + [out[k]["latest_n"]])) * .8 for k in live_k])
-    tw = np.array([len(stories[k]["name"]) for k in live_k]) * fs * .5
+    tw = np.array([len(ex[k]["name"]) for k in live_k]) * fs * .5
     gx, gy = np.meshgrid(np.arange(0, MW + 1, 8.0), np.arange(0, MH + 1, 8.0)); G = np.c_[gx.ravel(), gy.ravel()]
     for area in (.26, .22, .18, .15, .12, .10, .08, .06, .04):
         rad = np.sqrt(cnt[live_k] / cnt.sum() * MW * MH * area / np.pi)
@@ -447,7 +483,7 @@ for f in CFG["firms"]:
         if len(placed) == n: break
     Y = np.zeros((len(R), 2))
     for a, k in enumerate(live_k):
-        m = np.where(hard == k)[0]
+        m = np.where(own == k)[0]
         Z = (umap.UMAP(n_neighbors=min(30, len(m) - 1), min_dist=.1, metric="cosine", random_state=0).fit_transform(X2[m])
              if len(m) >= 20 else np.random.default_rng(int(k)).normal(size=(len(m), 2)))
         Z = Z - np.median(Z, 0); r = np.hypot(*Z.T) + 1e-9
@@ -456,19 +492,20 @@ for f in CFG["firms"]:
     evi = {h: e["id"] for e in events for h in e["h"]}
     os.makedirs(f"{ROOT}/site/data/map", exist_ok=True)
     json.dump(dict(w=MW, h=MH,
-                   regions=[dict(id=stories[k]["id"], cx=round(float(P[a, 0]), 1), cy=round(float(P[a, 1]), 1), r=round(float(rad[a]), 1))
+                   regions=[dict(id=ex[k]["id"], cx=round(float(P[a, 0]), 1), cy=round(float(P[a, 1]), 1), r=round(float(rad[a]), 1))
                             for a, k in enumerate(live_k)],
-                   events=[dict(id=e["id"], x=round(float(np.median([Y[pos[h], 0] for h in e["h"]])), 1),
-                                y=round(float(np.median([Y[pos[h], 1] for h in e["h"]])), 1)) for e in events],
+                   events=[dict(id=e["id"], x=round(float(np.median([Y[pos[h], 0] for h in e["h"] if own[pos[h]] >= 0])), 1),
+                                y=round(float(np.median([Y[pos[h], 1] for h in e["h"] if own[pos[h]] >= 0])), 1))
+                           for e in events if any(own[pos[h]] >= 0 for h in e["h"])],
                    cols=["x", "y", "story", "event", "week", "now", "title", "publisher", "date", "url"],
-                   arts=[[round(float(Y[i, 0]), 1), round(float(Y[i, 1]), 1), stories[hard[i]]["id"], evi.get(R[i]["h"], -1),
+                   arts=[[round(float(Y[i, 0]), 1), round(float(Y[i, 1]), 1), ex[own[i]]["id"], evi.get(R[i]["h"], -1),
                           widx[wk[i]], int(recent[i]), R[i]["t"], R[i]["publisher"], R[i]["dt"].strftime("%b %d"), R[i]["url"]]
-                         for i in range(len(R))]),
+                         for i in range(len(R)) if own[i] >= 0]),
               open(f"{ROOT}/site/data/map/{tk}.json", "w"), ensure_ascii=False, separators=(",", ":"))
 
     doc = dict(ticker=tk, name=firm, updated=now.strftime("%Y-%m-%d %H:%M UTC"), weeks=[w.isoformat() for w in weeks],
                latest_from=week_cut.strftime("%b %d"), latest_to=now.strftime("%b %d"),
-               n_articles=len(rows), n_relevant=len(R), stories=out, events=events)
+               n_articles=len(rows), n_relevant=len(R), n_unassigned=int((own < 0).sum()), stories=out, events=events)
     json.dump(doc, open(f"{ROOT}/site/data/{tk}.json", "w"), ensure_ascii=False)
     top = max(out, key=lambda s: s["latest_n"]) if out else None
     index.append(dict(ticker=tk, name=firm, top=top["name"] if top else ""))

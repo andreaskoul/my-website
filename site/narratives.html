@@ -141,12 +141,12 @@ async function load(tk){
     s.delta = sh(D.weeks[n-2]) - prev.reduce((a,b)=>a+b,0) / Math.max(prev.length,1);
     s.sh = sh;
   });
-  D.order = [...D.stories].sort((a,b) => b.latest_n - a.latest_n);
+  D.order = D.stories.filter(s => !s.retired || s.latest_n > 0).sort((a,b) => b.latest_n - a.latest_n);   // ended stories stay in the chart only
   sel = D.order[0]?.id; open = new Set([sel]); evOpen = new Set();
   D.events = D.events || [];
   $("title").innerHTML = esc(D.name) + "<small>" + esc(D.ticker) + "</small>";
   document.title = D.name + " — Narrative landscape";
-  $("meta").innerHTML = `<span class="mono">${D.n_articles.toLocaleString()}</span> articles over ${n} weeks, <span class="mono">${D.n_relevant.toLocaleString()}</span> about ${esc(D.name)} or its orbit, <span class="mono">${D.stories.length}</span> stories. Updated <span class="mono">${esc(D.updated)}</span>.`;
+  $("meta").innerHTML = `<span class="mono">${D.n_articles.toLocaleString()}</span> articles over ${n} weeks, <span class="mono">${D.n_relevant.toLocaleString()}</span> about ${esc(D.name)} or its orbit, <span class="mono">${D.stories.length}</span> stories${D.n_unassigned ? `, <span class="mono">${D.n_unassigned.toLocaleString()}</span> articles in none` : ""}. Updated <span class="mono">${esc(D.updated)}</span>.`;
   $("range").textContent = `${D.latest_from} – ${D.latest_to}, ranked by how much was written. Open a story to read its articles.`;
   try { history.replaceState(null, "", "#" + tk); } catch(e) {}
   M = null; mwk = n - 1;
@@ -229,15 +229,16 @@ function landscape(){
   if (!M) return;
   const n = D.weeks.length, last = mwk === n-1, hi = mhi ?? (mhe === null ? sel : null);
   const cnt = s => last ? s.latest_n : ((s.series[mwk] || {n:0}).n);
-  let g = M.regions.map(q => `<circle cx="${q.cx}" cy="${q.cy}" r="${q.r+6}" fill="none" stroke="${hi===q.id?"#c00000":"#000"}" stroke-opacity="${hi===q.id?.6:.18}" stroke-dasharray="1 3"/>`).join("");
+  const alive = {}; D.stories.forEach(s => alive[s.id] = !s.alive || s.alive[mwk]);      // a story shows in the weeks it is alive
+  let g = M.regions.map(q => `<circle cx="${q.cx}" cy="${q.cy}" r="${q.r+6}" fill="none" stroke="${hi===q.id?"#c00000":"#000"}" stroke-opacity="${hi===q.id?.6:alive[q.id]?.18:.06}" stroke-dasharray="1 3"/>`).join("");
   for (const d of M.dots){
-    const on = mhe !== null ? d.e === mhe : hi !== null && d.s === hi, cur = d.slot === mwk;
+    const on = mhe !== null ? d.e === mhe : hi !== null && d.s === hi, cur = d.slot === mwk && (alive[d.s] || mhe !== null);
     const f = on ? (cur ? "#c00000" : "rgba(192,0,0,.35)") : (cur ? "#000" : "rgba(0,0,0,.13)");
     g += `<circle cx="${d.x}" cy="${d.y}" r="${cur?2.4:1.6}" fill="${f}"${(hi!==null||mhe!==null) && !on ? ' opacity=".35"' : ""}/>`;
   }
   const boxes = [];
   for (const q of M.regions){
-    const s = D.stories.find(t => t.id === q.id); if (!s) continue;
+    const s = D.stories.find(t => t.id === q.id); if (!s || (!alive[s.id] && hi !== s.id)) continue;   // no title while not running
     const fs = 15 + Math.sqrt(cnt(s))*.8, x = q.cx, y = q.cy - q.r - 12, w = s.name.length*fs*.5;   // size follows that week's volume
     boxes.push([x - w/2, y - fs, w, fs + 6]);
     g += `<g class="lbl" data-id="${s.id}"><text x="${x}" y="${y}" text-anchor="middle" font-weight="bold" font-size="${fs.toFixed(1)}"${hi===s.id?' fill="#c00000"':""}>${esc(s.name)}</text></g>`;
@@ -302,14 +303,14 @@ function chart(){
     tip.hidden = false; tip.style.left = x(i)*r.width/500 + "px"; tip.style.top = y(q.share)*r.height/220 + "px";
     tip.textContent = `${lab(ws[i])}: ${Math.round(q.share*100)}%, ${q.n} articles`; };
   svg.querySelector("#hit").onmouseleave = () => { tip.hidden = true; cx.setAttribute("stroke-opacity", 0); };
-  $("legend").innerHTML = (D.events.some(e => e.story===sel) ? `<span class="src" style="width:100%">◇ = an event in this story (hover for its name)</span>` : "") + D.stories.map(t => `<button data-id="${t.id}" aria-pressed="${t.id===sel}">${esc(t.name)}</button>`).join("");
+  $("legend").innerHTML = (D.events.some(e => e.story===sel) ? `<span class="src" style="width:100%">◇ = an event in this story (hover for its name)</span>` : "") + D.stories.map(t => `<button data-id="${t.id}" aria-pressed="${t.id===sel}">${esc(t.name)}${t.retired ? " (ended)" : ""}</button>`).join("");
   document.querySelectorAll(".legend button").forEach(b => b.onclick = () => { sel = +b.dataset.id; render(); });
 }
 
 function timeline(){
   const s = D.stories.find(s => s.id===sel); if (!s) return;
   const mx = Math.max(...s.evolution.map(e => e.n), 1);
-  $("tl-title").textContent = s.name;
+  $("tl-title").innerHTML = esc(s.name) + ((s.was || []).length ? `<div class="src" style="font-weight:normal;margin-top:2px">formerly ${s.was.map(w => `“${esc(w.name)}” (until ${lab(w.until)})`).join(", ")}</div>` : "");
   $("tl").innerHTML = [...s.evolution].reverse().map(e => `<li><div class="wk">${lab(e.week)}<br>${e.n} art.</div>
     <div><a href="${esc(e.u)}" target="_blank" rel="noopener">${esc(e.h)}</a>${e.n===mx?`<span class="peak">PEAK WEEK</span>`:""}
     <div class="src">${esc(e.p)}</div><div class="bar ${e.n===mx?"peakbar":""}" style="width:${Math.max(3,100*e.n/mx)}%"></div>

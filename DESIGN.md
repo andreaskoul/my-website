@@ -158,6 +158,26 @@ minimum is untested). Stored as article hashes, not centroids: a 3072-d centroid
 megabytes to the committed state daily. The site shows this week's events (then the latest before
 them), marks each story's events on its chart line (◇) and in its week-by-week timeline.
 
+**Story lifecycle (2026-09-27).** The landscape showed the same stories in every week, for three reasons:
+one fit over the whole 13-week window with 4-7 stories per firm gives broad themes that do run all quarter;
+every relevant article was forced into its nearest story (argmax), so each story collected stray articles in
+every week (TSLA "Q2 Earnings Slump" had 114 articles in the first week of July: Q2 deliveries, but also
+"Cathie Wood buys…" at cosine 0.08); and the site redrew all history from today's stories, so a story retired
+by a refit vanished from the whole timeline. Now: (1) membership has a cut — an article joins its nearest
+story only if at least as close as that story's 25%-quantile member (emerging stories: their radius), else no
+story (~25-29% of relevant articles for NVDA/TSLA); (2) it is written once to state["assign"] and never
+rewritten, so a retired story keeps its articles and name and is exported marked retired ("ended" on the
+site); only articles in no story can be claimed later; (3) a story is alive in a week with 3+ articles and
+20%+ of its peak weekly share (share, not count: news volume dips in some weeks, e.g. late August, and a
+count rule made every story "die" at once); the map shows a region's title and black dots only then.
+(4) At a refit a matched story whose centroid moved (cosine to last week's < 0.8) is renamed from its current
+headlines; the old name goes to its "was" list, shown on the site as "formerly …". Tested on TSLA: the refit
+renamed "Cybercab Rollout & Scrutiny" (0.79) and "EV Market Q2 2026" (0.75); "Q2 Earnings Slump" is alive
+in July then ends; Roadster, Vietnam, Semi are born in September. Not done: replaying the 13 weeks of fits
+to reconstruct past lifecycles (hours of compute, and the themes are mostly persistent anyway); history
+accumulates from the first weekly refit (2026-09-28). Known: a refit with K=4 can retire an emerging story
+that is still active (TSLA Semi); the emerging test may re-find it.
+
 **The landscape (build.py step 10, site "The landscape").** Every relevant article is a dot; each story
 is a circled region with its title above it. A shared 2D map (one UMAP over all articles) was tried first:
 under gte-small four of five stories overlapped and their titles collided; supervising UMAP with the story
