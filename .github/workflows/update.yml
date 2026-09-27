@@ -29,6 +29,8 @@ jobs:
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}          # the branch tip: a queued run starts from the latest data commit
 
       - uses: actions/setup-python@v5
         with:
@@ -70,7 +72,7 @@ jobs:
           git add data/raw data/state site/data
           if ! git diff --cached --quiet; then
             git commit -m "data: $(date -u +'%Y-%m-%d %H:%M')"
-            git pull --rebase origin "${GITHUB_REF_NAME}"      # someone may have pushed during the run
+            git pull --rebase -X theirs origin "${GITHUB_REF_NAME}"   # data pushed meanwhile: this run's (newer) files win
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
