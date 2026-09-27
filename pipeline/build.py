@@ -44,10 +44,8 @@ Per firm, in order:
   8. NAMES: only new stories and new events are named -- by OPENROUTER_MODEL if it and
      OPENROUTER_API_KEY are set; stories fall back to their most distinctive keywords.
   STORY RELEVANCE (every run): a story is shown only if its own articles name the firm NAME_BAR times more
-     often than the other feeds do (the coarse test in step 3 can pass a mixed group that the fit then splits)
-     AND the LLM, asked once per story (new, reborn or renamed), agrees it bears on the firm; its one-line
-     reason is shown on the site. Events are kept if most of their articles are in shown stories or they
-     pass the name test themselves.
+     often than the other feeds do (the coarse test in step 3 can pass a mixed group that the fit then splits).
+     Events are kept if most of their articles are in shown stories or they pass the name test themselves.
   MEMBERSHIP (every run): an article joins its nearest story only if it is at least as close as the
      story's MEMBER_Q-quantile member, else no story; written once to state["assign"], never rewritten.
      A story is alive in a week when it has ALIVE_MIN+ articles and ALIVE_PEAK+ of its peak weekly share.
@@ -284,8 +282,7 @@ for f in CFG["firms"]:
                 nm, bl, src = name_story([rows[np.where(rel)[0][i]]["t"] for i in top], firm)
                 ids[k] = nxt; nxt += 1
             stories.append(dict(id=ids[k], name=nm, blurb=bl, name_src=src, centroid=np.round(raw_c[k], 5).tolist(),
-                                born=prev["born"] if prev else now.date().isoformat(), was=was)
-                           | ({"rel": prev["rel"]} if prev and "rel" in prev and nm == prev["name"] else {}))   # re-asked if renamed
+                                born=prev["born"] if prev else now.date().isoformat(), was=was))
         # an emerging story the new fit did not match is kept while it is still running: MIN_EMERGE+ articles
         # within its radius over the last EMERGE_DAYS, the bar it passed to be born (a K=4 fit can miss it)
         fresh = np.array([r["dt"] >= now - timedelta(days=EMERGE_DAYS) for r in rows]); Xn = unit(X - mu2)
@@ -296,7 +293,6 @@ for f in CFG["firms"]:
                 stories.append(e); C2 = np.vstack([C2, c]); ids.append(e["id"])
                 print(f"   {tk}: kept emerging story '{e['name']}' (still active)", flush=True)
         past = [{k: s[k] for k in ("id", "name", "blurb", "name_src", "centroid", "born") } | {"was": s.get("was", [])}
-                | ({"rel": s["rel"]} if "rel" in s else {})
                 for s in old + past if s["id"] not in ids][:100]
         state = dict(fitted=now.isoformat(), embed=EMBED, K=K, next_id=nxt, mu1=np.round(mu1, 5).tolist(),
                      C1=np.round(C1, 5).tolist(), keep1=keep1, mu2=np.round(mu2, 5).tolist(),
@@ -396,31 +392,7 @@ for f in CFG["firms"]:
                               len(oth), start.date().isoformat()]
     nb, nm_ = state["name_base"][:2]; named_R = NAMED[tk][np.where(rel)[0]]
     ok = [lo95(int(named_R[own == k].sum()), int((own == k).sum()), nb, nm_) >= NAME_BAR for k in range(len(ex))]
-    # ... and an LLM must agree the story bears on the firm; asked once per story (new, reborn or renamed), kept
-    # in the story as {"ok", "why"}; "why" is shown on the site. No key or a failed call: the name test decides.
-    def judge(k):
-        m = np.where(own == k)[0]; m = m[np.argsort(-SEk[m, k])][:10]
-        try:
-            j = json.loads(re.search(r"\{.*\}", chat(
-                f"News story \"{ex[k]['name']}\", from the news feed of {firm}. Typical headlines:\n"
-                + "\n".join("- " + R[i]["t"] for i in m) + f"\n\nIs this story relevant to {firm}: about {firm} itself, or "
-                f"about its competitors, suppliers, customers, partners or market, or a company linked to it by shared ownership, leadership or a possible merger, in a way that bears on {firm}? A story only "
-                f"filed under {firm} (e.g. general stock picks, another company's stock) is not. Reply JSON only: "
-                f'{{"relevant": true|false, "why": "one short line: how it bears on {firm}"}}'), re.S).group(0))
-            return dict(ok=bool(j["relevant"]), why=str(j.get("why") or "")[:160])
-        except Exception as e:
-            print(f"   relevance via OpenRouter failed ({e})", flush=True); return None
-    SEk = X2 @ unit(np.array([st["centroid"] for st in ex]) - mu2).T
-    ask = [k for k, st in enumerate(ex) if "rel" not in st and (own == k).any() and OR_KEY]
-    if ask:
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(8) as pool:
-            for k, v in zip(ask, pool.map(judge, ask)):
-                if v: ex[k]["rel"] = v
-    for k, st in enumerate(ex):
-        if ok[k] and not st.get("rel", {}).get("ok", True): ok[k] = False
-        if not ok[k]: print(f"   {tk}: '{st['name']}' not shown: " + (f"LLM: {st['rel']['why']}" if not st.get("rel", {}).get("ok", True)
-                                                                    else f"its articles rarely name {firm}"), flush=True)
+    for k in np.where(~np.array(ok, bool))[0]: print(f"   {tk}: '{ex[k]['name']}' not shown: its articles rarely name {firm}", flush=True)
     ex = [st for st, o in zip(ex, ok) if o]
     own = np.array([{st["id"]: k for k, st in enumerate(ex)}.get(a, -1) for a in aid])
     SE = X2 @ unit(np.array([st["centroid"] for st in ex]) - mu2).T                                      # typicality, per story
@@ -441,8 +413,6 @@ for f in CFG["firms"]:
                         new=st["name_src"] != "manual" and st["born"] >= since.date().isoformat(), retired=st["id"] not in cur,
                         alive=[n >= ALIVE_MIN and v["share"] >= ALIVE_PEAK * max(x["share"] for x in series) for n, v in zip(n_w, series)],
                         was=st.get("was", []),                           # earlier names, when the story drifted
-                        why=st.get("rel", {}).get("why", ""),            # how it bears on the firm (LLM)
-                        named=round(float(named_R[own == k].mean()), 2) if (own == k).any() else 0,   # share naming the firm
                         series=series, evolution=evo,
                         latest=[dict(t=R[i]["t"], d=R[i]["desc"][:260], p=R[i]["publisher"],
                                      date=R[i]["dt"].strftime("%b %d"), u=R[i]["url"]) for i in lat]))

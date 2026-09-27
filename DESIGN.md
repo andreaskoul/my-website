@@ -186,11 +186,9 @@ again. Now every story must pass two tests, every run: (1) its own articles name
 other feeds do (95% bound; a plain "> 1" was too weak — Nvidia is named in only 2.9% of other feeds, so 5% cleared
 it); across all firms this hid 6 of 144 stories (NVDA SpaceX, Vanguard ETFs, Bitcoin; MSFT enterprise-software
 valuations; GOOGL quantum; AVGO AI-bubble debate) and kept every genuine neighbour story (NVDA memory 16%,
-4.2x); (2) the LLM, asked once per story (new, reborn or renamed), agrees it bears on the firm — about it, its
-competitors, suppliers, customers, partners, market, or a company linked by ownership, leadership or a
-possible merger (without that clause it hid TSLA's SpaceX story, which names Tesla 70% of the time and covers
-merger talk). Its one-line reason is shown under the story on the site when fewer than half its articles
-name the firm ("Micron and Sandisk are key HBM suppliers…"). Events are kept if most of their articles are
+4.2x); An LLM verdict per story ("does it bear on the firm?", asked once, with a one-line reason shown on the
+site) was tried the same day and removed: it caught nothing the name test missed, and its first wording wrongly
+hid TSLA's SpaceX story (names Tesla 70% of the time; merger talk). Events are kept if most of their articles are
 in shown stories or they pass the name test themselves: requiring a shown story dropped real Nvidia events
 ("Amkor and Nvidia $1.5B deal"); requiring the name test dropped neighbour events ("AMD crosses $1T").
 
