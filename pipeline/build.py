@@ -25,7 +25,8 @@ Per firm, in order:
   5. IDENTITY: new stories are matched one-to-one to last week's by meaning; matches keep their
      id and history, and their name unless the story's centre moved far (cosine < RENAME): then the
      narrative has changed and it is renamed, the old name kept in its "was" list.
-     Stories that lose their match are retired to state["past"] (a story that comes back gets its
+     An unmatched emerging story is kept while still active (MIN_EMERGE+ articles in its radius over the
+     last EMERGE_DAYS). Other stories that lose their match are retired to state["past"] (a story that comes back gets its
      old id and name back); they keep their articles, see MEMBERSHIP.
   6. EMERGING (every run, not only on refit days): the last EMERGE_DAYS of the firm's feed, minus
      what the current stories already explain, is grouped; a group becomes a new story when it is
@@ -277,6 +278,15 @@ for f in CFG["firms"]:
                 ids[k] = nxt; nxt += 1
             stories.append(dict(id=ids[k], name=nm, blurb=bl, name_src=src, centroid=np.round(raw_c[k], 5).tolist(),
                                 born=prev["born"] if prev else now.date().isoformat(), was=was))
+        # an emerging story the new fit did not match is kept while it is still running: MIN_EMERGE+ articles
+        # within its radius over the last EMERGE_DAYS, the bar it passed to be born (a K=4 fit can miss it)
+        fresh = np.array([r["dt"] >= now - timedelta(days=EMERGE_DAYS) for r in rows]); Xn = unit(X - mu2)
+        for e in old:
+            if not e.get("radius") or e["id"] in ids: continue
+            c = unit(np.array(e["centroid"]) - mu2)
+            if int(((Xn @ c >= e["radius"]) & fresh).sum()) >= MIN_EMERGE:
+                stories.append(e); C2 = np.vstack([C2, c]); ids.append(e["id"])
+                print(f"   {tk}: kept emerging story '{e['name']}' (still active)", flush=True)
         past = [{k: s[k] for k in ("id", "name", "blurb", "name_src", "centroid", "born") } | {"was": s.get("was", [])}
                 for s in old + past if s["id"] not in ids][:100]
         state = dict(fitted=now.isoformat(), embed=EMBED, K=K, next_id=nxt, mu1=np.round(mu1, 5).tolist(),

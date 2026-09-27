@@ -175,8 +175,9 @@ headlines; the old name goes to its "was" list, shown on the site as "formerly â
 renamed "Cybercab Rollout & Scrutiny" (0.79) and "EV Market Q2 2026" (0.75); "Q2 Earnings Slump" is alive
 in July then ends; Roadster, Vietnam, Semi are born in September. Not done: replaying the 13 weeks of fits
 to reconstruct past lifecycles (hours of compute, and the themes are mostly persistent anyway); history
-accumulates from the first weekly refit (2026-09-28). Known: a refit with K=4 can retire an emerging story
-that is still active (TSLA Semi); the emerging test may re-find it.
+accumulates from the first weekly refit (2026-09-28). A refit keeps an unmatched emerging story while it is still active (10+ articles in its radius over the
+last 14 days, the bar it passed to be born): a K=4 fit had retired TSLA "Semi production" with 21 articles
+that week; now Semi and Roadster are kept and the fading "Enters Vietnam" (3) is retired.
 
 **The landscape (build.py step 10, site "The landscape").** Every relevant article is a dot; each story
 is a circled region with its title above it. A shared 2D map (one UMAP over all articles) was tried first:
