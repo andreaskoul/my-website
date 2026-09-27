@@ -56,6 +56,7 @@ ol.tl li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;padding:
 .evs{margin:0}
 .blk{margin-top:30px}
 .summ{font-size:15px;margin-top:2px}
+.why{font-size:13px;font-style:italic;margin-top:1px}
 .cnt{font-family:monospace;font-size:12px;white-space:nowrap}
 .cnt b{font-size:16px}
 .was{font-family:monospace;font-size:11px}
@@ -185,7 +186,7 @@ function prepMap(){
     if (v){ const ev = D.events.find(q => q.id === +v.dataset.e); if (mhe !== ev.id){ mhe = ev.id; mhi = null; landscape(); }
       return tipAt(x, y, `<span class="src">${ev.n} ARTICLES · ${esc(span(ev)).toUpperCase()}</span><b>${esc(ev.name)}</b><ol style="margin:6px 0 0;padding-left:18px">${ev.top.map(a => `<li>${esc(a.t)}</li>`).join("")}</ol>`); }
     if (l){ const st = D.stories.find(q => q.id === +l.dataset.id); if (mhi !== st.id){ mhi = st.id; mhe = null; landscape(); }
-      return tipAt(x, y, `<span class="src">${st.latest_n} ARTICLES THIS WEEK</span><b>${esc(st.name)}</b><p>${esc(st.blurb)}</p>`); }
+      return tipAt(x, y, `<span class="src">${st.latest_n} ARTICLES THIS WEEK</span><b>${esc(st.name)}</b>${st.why && st.named < .5 ? `<p><i>${esc(st.why)}</i></p>` : ""}<p>${esc(st.summary || st.blurb)}</p>`); }
     if (mhi !== null || mhe !== null){ mhi = null; mhe = null; landscape(); }
     let best = null, bd = 18*18;
     for (const d of M.dots){ const q = (d.x-x)**2 + (d.y-y)**2; if (q < bd){ bd = q; best = d; } }
@@ -252,7 +253,7 @@ function render(){
     const isOpen = open.has(s.id);
     return `<div class="story ${s.id===sel?"sel":""}">
       <button class="row" data-id="${s.id}" aria-expanded="${isOpen}">
-        <span><span class="name">${esc(s.name)}</span>${s.new?`<span class="peak" title="A story that appeared in the last two weeks">NEW</span>`:""}${(s.was || []).length ? `<div class="was">formerly ${s.was.map(w => "“" + esc(w.name) + "”").join(", ")}</div>` : ""}<div class="summ">${esc(s.summary || s.blurb)}</div></span>
+        <span><span class="name">${esc(s.name)}</span>${s.new?`<span class="peak" title="A story that appeared in the last two weeks">NEW</span>`:""}${(s.was || []).length ? `<div class="was">formerly ${s.was.map(w => "“" + esc(w.name) + "”").join(", ")}</div>` : ""}${s.why && s.named < .5 ? `<div class="why">${esc(s.why)}</div>` : ""}<div class="summ">${esc(s.summary || s.blurb)}</div></span>
         <span class="cnt"><b>${s.latest_n}</b> articles</span>
       </button>
       ${isOpen ? `<ul class="arts">${s.latest.map(a => `<li><a href="${esc(a.u)}" target="_blank" rel="noopener">${esc(a.t)}</a>${a.d?`<p>${esc(a.d)}</p>`:""}<div class="src">${esc(a.p)} · ${esc(a.date)}</div></li>`).join("")}</ul>` : ""}

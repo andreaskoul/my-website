@@ -43,6 +43,11 @@ Per firm, in order:
      name and is not sent to the LLM again.
   8. NAMES: only new stories and new events are named -- by OPENROUTER_MODEL if it and
      OPENROUTER_API_KEY are set; stories fall back to their most distinctive keywords.
+  STORY RELEVANCE (every run): a story is shown only if its own articles name the firm NAME_BAR times more
+     often than the other feeds do (the coarse test in step 3 can pass a mixed group that the fit then splits)
+     AND the LLM, asked once per story (new, reborn or renamed), agrees it bears on the firm; its one-line
+     reason is shown on the site. Events are kept if most of their articles are in shown stories or they
+     pass the name test themselves.
   MEMBERSHIP (every run): an article joins its nearest story only if it is at least as close as the
      story's MEMBER_Q-quantile member, else no story; written once to state["assign"], never rewritten.
      A story is alive in a week when it has ALIVE_MIN+ articles and ALIVE_PEAK+ of its peak weekly share.
@@ -66,6 +71,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG = json.load(open(f"{ROOT}/config/firms.json"))
 K1, STABLE, NEARDUP, MATCH = 8, 0.85, 0.95, 0.5
 MEMBER_Q, ALIVE_MIN, ALIVE_PEAK = 0.25, 3, 0.2   # membership cut; alive in a week: 3+ articles and 20%+ of its peak share
+NAME_BAR = 3.0  # a story must name the firm at least 3x as often as the other feeds do (95% bound)
 RENAME = 0.8    # a refit match this far from last week's centroid (cosine below) has drifted: it is renamed
 EMERGE_DAYS, MIN_EMERGE, OUT_Q, MAX_LIVE = 14, 10, 0.10, 3
 EV_TAU, EV_CUT, EV_MIN, EV_SAME = 6.0, 0.30, 8, 0.5     # days, similarity cut, min articles, overlap to be the same event
@@ -278,7 +284,8 @@ for f in CFG["firms"]:
                 nm, bl, src = name_story([rows[np.where(rel)[0][i]]["t"] for i in top], firm)
                 ids[k] = nxt; nxt += 1
             stories.append(dict(id=ids[k], name=nm, blurb=bl, name_src=src, centroid=np.round(raw_c[k], 5).tolist(),
-                                born=prev["born"] if prev else now.date().isoformat(), was=was))
+                                born=prev["born"] if prev else now.date().isoformat(), was=was)
+                           | ({"rel": prev["rel"]} if prev and "rel" in prev and nm == prev["name"] else {}))   # re-asked if renamed
         # an emerging story the new fit did not match is kept while it is still running: MIN_EMERGE+ articles
         # within its radius over the last EMERGE_DAYS, the bar it passed to be born (a K=4 fit can miss it)
         fresh = np.array([r["dt"] >= now - timedelta(days=EMERGE_DAYS) for r in rows]); Xn = unit(X - mu2)
@@ -289,6 +296,7 @@ for f in CFG["firms"]:
                 stories.append(e); C2 = np.vstack([C2, c]); ids.append(e["id"])
                 print(f"   {tk}: kept emerging story '{e['name']}' (still active)", flush=True)
         past = [{k: s[k] for k in ("id", "name", "blurb", "name_src", "centroid", "born") } | {"was": s.get("was", [])}
+                | ({"rel": s["rel"]} if "rel" in s else {})
                 for s in old + past if s["id"] not in ids][:100]
         state = dict(fitted=now.isoformat(), embed=EMBED, K=K, next_id=nxt, mu1=np.round(mu1, 5).tolist(),
                      C1=np.round(C1, 5).tolist(), keep1=keep1, mu2=np.round(mu2, 5).tolist(),
@@ -378,6 +386,43 @@ for f in CFG["firms"]:
     cur = [st["id"] for st in stories]
     ex = [by_id[i] for i in cur + sorted({a for a in aid if a != -1 and a not in cur}) if i in by_id]   # + retired, with articles
     own = np.array([{st["id"]: k for k, st in enumerate(ex)}.get(a, -1) for a in aid])
+    # a story must be about the firm: its own articles name it NAME_BAR times more often than the other feeds'
+    # articles do. The coarse-anchor test (step 3) can pass a mixed group from which the fit then splits an
+    # off-topic story (NVDA: "SpaceX stock" pieces Finnhub files under NVDA, 5% naming Nvidia vs 2.9% elsewhere).
+    if "name_base" not in state or state["name_base"][2] != start.date().isoformat():
+        mine = {r["h"] for r in rows}
+        oth = [r for t2 in feeds if t2 != tk for r in feeds[t2] if r["h"] not in mine and r["dt"] >= start]
+        state["name_base"] = [sum(PATS[tk].search(r["text"]) is not None and tk not in (r.get("tickers") or []) for r in oth),
+                              len(oth), start.date().isoformat()]
+    nb, nm_ = state["name_base"][:2]; named_R = NAMED[tk][np.where(rel)[0]]
+    ok = [lo95(int(named_R[own == k].sum()), int((own == k).sum()), nb, nm_) >= NAME_BAR for k in range(len(ex))]
+    # ... and an LLM must agree the story bears on the firm; asked once per story (new, reborn or renamed), kept
+    # in the story as {"ok", "why"}; "why" is shown on the site. No key or a failed call: the name test decides.
+    def judge(k):
+        m = np.where(own == k)[0]; m = m[np.argsort(-SEk[m, k])][:10]
+        try:
+            j = json.loads(re.search(r"\{.*\}", chat(
+                f"News story \"{ex[k]['name']}\", from the news feed of {firm}. Typical headlines:\n"
+                + "\n".join("- " + R[i]["t"] for i in m) + f"\n\nIs this story relevant to {firm}: about {firm} itself, or "
+                f"about its competitors, suppliers, customers, partners or market, or a company linked to it by shared ownership, leadership or a possible merger, in a way that bears on {firm}? A story only "
+                f"filed under {firm} (e.g. general stock picks, another company's stock) is not. Reply JSON only: "
+                f'{{"relevant": true|false, "why": "one short line: how it bears on {firm}"}}'), re.S).group(0))
+            return dict(ok=bool(j["relevant"]), why=str(j.get("why") or "")[:160])
+        except Exception as e:
+            print(f"   relevance via OpenRouter failed ({e})", flush=True); return None
+    SEk = X2 @ unit(np.array([st["centroid"] for st in ex]) - mu2).T
+    ask = [k for k, st in enumerate(ex) if "rel" not in st and (own == k).any() and OR_KEY]
+    if ask:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(8) as pool:
+            for k, v in zip(ask, pool.map(judge, ask)):
+                if v: ex[k]["rel"] = v
+    for k, st in enumerate(ex):
+        if ok[k] and not st.get("rel", {}).get("ok", True): ok[k] = False
+        if not ok[k]: print(f"   {tk}: '{st['name']}' not shown: " + (f"LLM: {st['rel']['why']}" if not st.get("rel", {}).get("ok", True)
+                                                                    else f"its articles rarely name {firm}"), flush=True)
+    ex = [st for st, o in zip(ex, ok) if o]
+    own = np.array([{st["id"]: k for k, st in enumerate(ex)}.get(a, -1) for a in aid])
     SE = X2 @ unit(np.array([st["centroid"] for st in ex]) - mu2).T                                      # typicality, per story
     wk = np.array([monday(r["dt"]) for r in R]); weeks = sorted(set(wk))
     recent = np.array([r["dt"] >= week_cut for r in R])
@@ -396,6 +441,8 @@ for f in CFG["firms"]:
                         new=st["name_src"] != "manual" and st["born"] >= since.date().isoformat(), retired=st["id"] not in cur,
                         alive=[n >= ALIVE_MIN and v["share"] >= ALIVE_PEAK * max(x["share"] for x in series) for n, v in zip(n_w, series)],
                         was=st.get("was", []),                           # earlier names, when the story drifted
+                        why=st.get("rel", {}).get("why", ""),            # how it bears on the firm (LLM)
+                        named=round(float(named_R[own == k].mean()), 2) if (own == k).any() else 0,   # share naming the firm
                         series=series, evolution=evo,
                         latest=[dict(t=R[i]["t"], d=R[i]["desc"][:260], p=R[i]["publisher"],
                                      date=R[i]["dt"].strftime("%b %d"), u=R[i]["url"]) for i in lat]))
@@ -410,7 +457,8 @@ for f in CFG["firms"]:
             return chat(f"These are this week's news articles in the story \"{o['name']}\" about {firm}. In at most two plain "
                         f"sentences (under 60 words), say what they report: the concrete facts and developments. Start "
                         f"directly with the facts (not \"This week's articles...\"), no hype, do not repeat the story "
-                        f"name.\n\n{arts}").strip().strip('"')[:600]
+                        f"name. If the articles barely mention {firm}, say in a few words how the story bears on "
+                        f"{firm}.\n\n{arts}").strip().strip('"')[:600]
         except Exception as e:
             print(f"   summary via OpenRouter failed ({e})", flush=True); return None
     todo = []
@@ -483,9 +531,11 @@ for f in CFG["firms"]:
         if not e["event"] or len(m) < EV_MIN: continue
         m = m[np.argsort(-(X2[m] @ unit(X2[m].mean(0))))]                    # most typical first
         d = sorted(R[i]["dt"] for i in m)
-        o = own[m][own[m] >= 0]                                               # the story most of its articles are in
-        events.append(dict(id=e["id"], name=e["name"], n=len(m),
-                           story=ex[int(np.bincount(o).argmax())]["id"] if len(o) else stories[int(np.bincount(hard[m]).argmax())]["id"],
+        o = own[m][own[m] >= 0]                     # kept if most of it sits in shown stories, or it names the firm itself
+        if len(o) < len(m) / 2 and lo95(int(named_R[m].sum()), len(m), nb, nm_) < NAME_BAR: continue
+                                                                              # the story most of its articles are in,
+        k = int(np.bincount(o).argmax()) if len(o) else int(SE[m].mean(0).argmax())   # else the closest shown story
+        events.append(dict(id=e["id"], name=e["name"], n=len(m), story=ex[k]["id"],
                            latest_n=int(recent[m].sum()), start=d[0].date().isoformat(), end=d[-1].date().isoformat(),
                            weeks={w.isoformat(): int((wk[m] == w).sum()) for w in weeks if (wk[m] == w).any()},
                            top=[dict(t=R[i]["t"], p=R[i]["publisher"], date=R[i]["dt"].strftime("%b %d"), u=R[i]["url"]) for i in m[:3]],

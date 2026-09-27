@@ -179,6 +179,21 @@ accumulates from the first weekly refit (2026-09-28). A refit keeps an unmatched
 last 14 days, the bar it passed to be born): a K=4 fit had retired TSLA "Semi production" with 21 articles
 that week; now Semi and Roadster are kept and the fading "Enters Vietnam" (3) is retired.
 
+**Story relevance (2026-09-27).** NVDA showed "SpaceX Stock Volatility" as a top story: only 5% of its
+articles named Nvidia (1 of 38 that week) — Finnhub files "should you buy SpaceX?" pieces under NVDA. The
+coarse-anchor test (step 3) had passed a mixed group from which the fit split an off-topic story, never tested
+again. Now every story must pass two tests, every run: (1) its own articles name the firm >= 3x as often as the
+other feeds do (95% bound; a plain "> 1" was too weak — Nvidia is named in only 2.9% of other feeds, so 5% cleared
+it); across all firms this hid 6 of 144 stories (NVDA SpaceX, Vanguard ETFs, Bitcoin; MSFT enterprise-software
+valuations; GOOGL quantum; AVGO AI-bubble debate) and kept every genuine neighbour story (NVDA memory 16%,
+4.2x); (2) the LLM, asked once per story (new, reborn or renamed), agrees it bears on the firm — about it, its
+competitors, suppliers, customers, partners, market, or a company linked by ownership, leadership or a
+possible merger (without that clause it hid TSLA's SpaceX story, which names Tesla 70% of the time and covers
+merger talk). Its one-line reason is shown under the story on the site when fewer than half its articles
+name the firm ("Micron and Sandisk are key HBM suppliers…"). Events are kept if most of their articles are
+in shown stories or they pass the name test themselves: requiring a shown story dropped real Nvidia events
+("Amkor and Nvidia $1.5B deal"); requiring the name test dropped neighbour events ("AMD crosses $1T").
+
 **The landscape (build.py step 10, site "The landscape").** Every relevant article is a dot; each story
 is a circled region with its title above it. A shared 2D map (one UMAP over all articles) was tried first:
 under gte-small four of five stories overlapped and their titles collided; supervising UMAP with the story
