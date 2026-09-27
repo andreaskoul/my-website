@@ -46,6 +46,7 @@ Per firm, in order:
   MEMBERSHIP (every run): an article joins its nearest story only if it is at least as close as the
      story's MEMBER_Q-quantile member, else no story; written once to state["assign"], never rewritten.
      A story is alive in a week when it has ALIVE_MIN+ articles and ALIVE_PEAK+ of its peak weekly share.
+  SUMMARY (every run): two sentences on what each story's articles of the last 7 days say, by the LLM.
   9. EXPORT: this week's articles per story, weekly share series, one representative
      headline per story per week, and the events with their articles.
  10. MAP (site/data/map/<TICKER>.json): every relevant article placed in 2D. One region per story, near
@@ -398,6 +399,33 @@ for f in CFG["firms"]:
                         series=series, evolution=evo,
                         latest=[dict(t=R[i]["t"], d=R[i]["desc"][:260], p=R[i]["publisher"],
                                      date=R[i]["dt"].strftime("%b %d"), u=R[i]["url"]) for i in lat]))
+
+    # ---- WEEKLY SUMMARY: what each story's articles of the last 7 days say, in two sentences, from its 10 most
+    #      typical ones. Cached in state["summ"] by the set of those articles, so a story is re-summarised only
+    #      when its week changes; several stories are summarised at once. Without a key: the story's blurb.
+    summ = state.setdefault("summ", {})
+    def summarise(o):
+        arts = "\n".join(f"- {a['date']}: {a['t']}" + (f" — {a['d'][:200]}" if a["d"] else "") for a in o["latest"])
+        try:
+            return chat(f"These are this week's news articles in the story \"{o['name']}\" about {firm}. In at most two plain "
+                        f"sentences (under 60 words), say what they report: the concrete facts and developments. Start "
+                        f"directly with the facts (not \"This week's articles...\"), no hype, do not repeat the story "
+                        f"name.\n\n{arts}").strip().strip('"')[:600]
+        except Exception as e:
+            print(f"   summary via OpenRouter failed ({e})", flush=True); return None
+    todo = []
+    for o in out:
+        key = hashlib.sha1("|".join(a["u"] or a["t"] for a in o["latest"]).encode()).hexdigest()[:12]
+        o["summary"] = summ.get(str(o["id"]), {}).get("text") if summ.get(str(o["id"]), {}).get("key") == key else None
+        if o["latest"] and o["summary"] is None and OR_KEY: todo.append((o, key))
+    if todo:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(8) as pool:
+            for (o, key), text in zip(todo, pool.map(lambda t: summarise(t[0]), todo)):
+                if text: o["summary"] = text; summ[str(o["id"])] = dict(key=key, text=text)
+    for o in out:
+        if not o["summary"]: o["summary"] = o["blurb"] if o["latest"] else ""
+    state["summ"] = {str(o["id"]): summ[str(o["id"])] for o in out if str(o["id"]) in summ}
 
     # ---- EVENTS: similarity = cosine x exp(-days apart / EV_TAU); average-linkage groups of EV_MIN+ articles.
     #      A group sharing at least EV_SAME of its articles with a known event (state["events"], kept or

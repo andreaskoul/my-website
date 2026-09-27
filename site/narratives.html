@@ -26,7 +26,7 @@ h2{font-size:22px;margin:0 0 2px}
 .sub{font-size:14px;margin:0 0 12px;font-style:italic}
 .story{border-top:1px solid var(--ink)}
 .story:last-child{border-bottom:1px solid var(--ink)}
-.row{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto 86px;gap:12px;align-items:center;width:100%;padding:10px 0}
+.row{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:baseline;width:100%;padding:10px 0}
 .row:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .name{font-size:19px;font-weight:bold}
 .sel .name{color:var(--red)}
@@ -53,7 +53,12 @@ ol.tl li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;padding:
 .peak{font-family:monospace;font-size:11px;color:var(--red);margin-left:6px}
 .bar{height:2px;background:var(--ink);margin-top:4px}
 .peakbar{background:var(--red)}
-.evs{margin:0 0 30px}
+.evs{margin:0}
+.blk{margin-top:30px}
+.summ{font-size:15px;margin-top:2px}
+.cnt{font-family:monospace;font-size:12px;white-space:nowrap}
+.cnt b{font-size:16px}
+.was{font-family:monospace;font-size:11px}
 .ev{border-top:1px solid var(--faint)}
 .ev:last-child{border-bottom:1px solid var(--faint)}
 .evrow{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:78px minmax(0,1fr) auto;gap:12px;align-items:baseline;width:100%;padding:8px 0}
@@ -102,25 +107,22 @@ footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-siz
     <div class="mw" id="mw"><svg class="map" id="map" width="100%" role="img" aria-label="Map of the company's news stories"></svg><div class="mtip" id="mtip" hidden></div></div>
     <div class="scrub"><div class="now" id="wkname"></div><input type="range" id="wk" min="0" max="1" step="1" value="1" aria-label="Week shown on the map"><div class="ticks" id="ticks"></div></div>
   </section>
-  <div class="grid">
-    <section>
-      <h2>What happened</h2>
-      <p class="sub" id="ev-range"></p>
-      <div class="evs" id="events"></div>
-      <h2>This week</h2>
-      <p class="sub" id="range"></p>
-      <div id="stories"></div>
-    </section>
-    <section>
-      <h2>How it evolved</h2>
-      <p class="sub">Each story's share of the company's coverage, week by week.</p>
-      <div style="position:relative" id="cbox"><svg class="chart" id="chart" viewBox="0 0 500 220" width="100%" role="img" aria-label="Weekly share of coverage per story"></svg><div class="tip" id="tip" hidden></div></div>
-      <div class="legend" id="legend"></div>
-      <h2 style="margin-top:26px" id="tl-title"></h2>
-      <p class="sub">The most typical headline each week — the story in its own words.</p>
-      <ol class="tl" id="tl"></ol>
-    </section>
-  </div>
+  <section class="blk">
+    <h2>What happened</h2>
+    <p class="sub" id="ev-range"></p>
+    <div class="evs" id="events"></div>
+  </section>
+  <section class="blk">
+    <h2>How it evolved</h2>
+    <p class="sub">Each story's share of the company's coverage, week by week. Click a story to follow it.</p>
+    <div style="position:relative" id="cbox"><svg class="chart" id="chart" viewBox="0 0 1000 250" width="100%" role="img" aria-label="Weekly share of coverage per story"></svg><div class="tip" id="tip" hidden></div></div>
+    <div class="legend" id="legend"></div>
+  </section>
+  <section class="blk">
+    <h2>Top stories of the week</h2>
+    <p class="sub" id="range"></p>
+    <div id="stories"></div>
+  </section>
   <footer id="foot">Stories are groups of articles that mean the same thing and discuss the company far more often than chance. Events are bursts of articles about one happening within a few days, sorted from commentary and named by an LLM. Sources: Finnhub and Polygon company news, de-duplicated. The current week is still in progress.</footer>
 </div>
 <script>
@@ -135,18 +137,13 @@ async function load(tk){
   try { D = await (await fetch("data/" + encodeURIComponent(tk) + ".json")).json(); }
   catch(e){ $("meta").textContent = "Could not load data for " + tk + "."; return; }
   const n = D.weeks.length;
-  D.stories.forEach(s => {
-    const sh = w => (s.series.find(x => x.week === w) || {share:0}).share;
-    const prev = D.weeks.slice(Math.max(0,n-6), n-2).map(sh);
-    s.delta = sh(D.weeks[n-2]) - prev.reduce((a,b)=>a+b,0) / Math.max(prev.length,1);
-    s.sh = sh;
-  });
+  D.stories.forEach(s => s.sh = w => (s.series.find(x => x.week === w) || {share:0}).share);
   D.order = D.stories.filter(s => !s.retired || s.latest_n > 0).sort((a,b) => b.latest_n - a.latest_n);   // ended stories stay in the chart only
-  sel = D.order[0]?.id; open = new Set([sel]); evOpen = new Set();
+  sel = D.order[0]?.id; open = new Set(); evOpen = new Set();                 // articles stay hidden until a story is opened
   D.events = D.events || [];
   $("title").innerHTML = esc(D.name) + "<small>" + esc(D.ticker) + "</small>";
   document.title = D.name + " — Narrative landscape";
-  $("meta").innerHTML = `<span class="mono">${D.n_articles.toLocaleString()}</span> articles over ${n} weeks, <span class="mono">${D.n_relevant.toLocaleString()}</span> about ${esc(D.name)} or its orbit, <span class="mono">${D.stories.length}</span> stories${D.n_unassigned ? `, <span class="mono">${D.n_unassigned.toLocaleString()}</span> articles in none` : ""}. Updated <span class="mono">${esc(D.updated)}</span>.`;
+  $("meta").textContent = "";
   $("range").textContent = `${D.latest_from} – ${D.latest_to}, ranked by how much was written. Open a story to read its articles.`;
   try { history.replaceState(null, "", "#" + tk); } catch(e) {}
   M = null; mwk = n - 1;
@@ -154,14 +151,6 @@ async function load(tk){
   render();
   try { const m = await (await fetch("data/map/" + encodeURIComponent(tk) + ".json")).json(); if (D.ticker === tk){ M = m; prepMap(); landscape(); } }
   catch(e){ $("map").innerHTML = `<text x="20" y="30" class="m">No map for this company yet.</text>`; }
-}
-
-function spark(s){
-  const w = D.weeks.slice(0,-1), v = w.map(s.sh), mx = Math.max(...D.stories.flatMap(t => w.map(t.sh)), 1e-6);
-  const p = v.map((y,i) => [i*84/Math.max(v.length-1,1)+1, 27-y/mx*24]);
-  const d = p.map((q,i) => (i?"L":"M") + q[0].toFixed(1) + "," + q[1].toFixed(1)).join("");
-  const e = p[p.length-1];
-  return `<svg viewBox="0 0 86 30" width="86" height="30" aria-hidden="true"><path d="${d}" fill="none" stroke="#000" stroke-width="1"/><circle cx="${e[0]}" cy="${e[1]}" r="2.2" fill="${s.id===sel?"#c00000":"#000"}"/></svg>`;
 }
 
 const span = e => { const a = lab(e.start), b = lab(e.end); return a===b ? a : a.split(" ")[0]===b.split(" ")[0] ? a + "–" + b.split(" ")[1] : a + " – " + b; };
@@ -259,31 +248,28 @@ function landscape(){
 
 function render(){
   events(); landscape();
-  $("stories").innerHTML = D.order.map(s => {
-    const pts = Math.round(s.delta*1000)/10;
-    const d = Math.abs(pts) < 1 ? "steady" : (pts > 0 ? "+" + pts + " pts" : "−" + Math.abs(pts) + " pts");
+  $("stories").innerHTML = D.order.filter(s => s.latest_n > 0).map(s => {
     const isOpen = open.has(s.id);
     return `<div class="story ${s.id===sel?"sel":""}">
       <button class="row" data-id="${s.id}" aria-expanded="${isOpen}">
-        <span><span class="name">${esc(s.name)}</span>${s.new?`<span class="peak" title="A story that appeared in the last two weeks">NEW</span>`:""}<div class="blurb">${esc(s.blurb)}</div></span>
-        <span class="num"><b>${s.latest_n}</b><span class="${pts>=1?"up":""}" title="Share of coverage last full week vs the four weeks before">${d}</span></span>
-        ${spark(s)}
+        <span><span class="name">${esc(s.name)}</span>${s.new?`<span class="peak" title="A story that appeared in the last two weeks">NEW</span>`:""}${(s.was || []).length ? `<div class="was">formerly ${s.was.map(w => "“" + esc(w.name) + "”").join(", ")}</div>` : ""}<div class="summ">${esc(s.summary || s.blurb)}</div></span>
+        <span class="cnt"><b>${s.latest_n}</b> articles</span>
       </button>
-      ${isOpen ? `<ul class="arts">${s.latest.length ? s.latest.map(a => `<li><a href="${esc(a.u)}" target="_blank" rel="noopener">${esc(a.t)}</a>${a.d?`<p>${esc(a.d)}</p>`:""}<div class="src">${esc(a.p)} · ${esc(a.date)}</div></li>`).join("") : "<li><i>Nothing this week.</i></li>"}</ul>` : ""}
+      ${isOpen ? `<ul class="arts">${s.latest.map(a => `<li><a href="${esc(a.u)}" target="_blank" rel="noopener">${esc(a.t)}</a>${a.d?`<p>${esc(a.d)}</p>`:""}<div class="src">${esc(a.p)} · ${esc(a.date)}</div></li>`).join("")}</ul>` : ""}
     </div>`;
-  }).join("");
+  }).join("") || `<p class="sub">No story had articles this week.</p>`;
   document.querySelectorAll(".row").forEach(b => b.onclick = () => {
     const id = +b.dataset.id; sel = id; open.has(id) ? open.delete(id) : open.add(id); render(); });
-  chart(); timeline();
+  chart();
 }
 
 function chart(){
-  const L=34,R=8,T=8,B=24,W=500-L-R,H=220-T-B, ws=D.weeks, n=ws.length;
+  const VW=1000, VH=250, L=38,R=8,T=10,B=24,W=VW-L-R,H=VH-T-B, ws=D.weeks, n=ws.length;
   const mx = Math.max(0.1, Math.ceil(Math.max(...D.stories.flatMap(s => ws.map(s.sh)))*10)/10);
   const x = i => L + i*W/Math.max(n-1,1), y = v => T + H - v/mx*H;
   let g = "";
   for (let k=0;k<=5;k++){ const v = mx*k/5; g += `<line x1="${L}" x2="${L+W}" y1="${y(v)}" y2="${y(v)}" stroke="#000" stroke-opacity="${k?0.12:1}"/><text x="${L-5}" y="${y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`; }
-  ws.forEach((w,i) => { if ((i%3===0 && i<n-2) || i===n-1) g += `<text x="${x(i)}" y="${214}" text-anchor="middle">${lab(w)}</text>`; });
+  ws.forEach((w,i) => { if ((i%2===0 && i<n-2) || i===n-1) g += `<text x="${x(i)}" y="${VH-6}" text-anchor="middle">${lab(w)}</text>`; });
   g += `<line x1="${x(n-2)}" x2="${x(n-2)}" y1="${T}" y2="${T+H}" stroke="#000" stroke-dasharray="2 3"/><text x="${x(n-1)}" y="${T+10}" text-anchor="end">now</text>`;
   const line = s => ws.map((w,i) => (i?"L":"M") + x(i).toFixed(1) + "," + y(s.sh(w)).toFixed(1)).join("");
   D.stories.filter(s => s.id!==sel).forEach(s => g += `<path d="${line(s)}" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="1"/>`);
@@ -297,24 +283,14 @@ function chart(){
   const svg = $("chart"); svg.innerHTML = g;
   const tip = $("tip"), cx = svg.querySelector("#cx");
   svg.querySelector("#hit").onmousemove = e => {
-    const r = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n-1, Math.round(((e.clientX-r.left)*500/r.width - L)/(W/Math.max(n-1,1)))));
+    const r = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n-1, Math.round(((e.clientX-r.left)*VW/r.width - L)/(W/Math.max(n-1,1)))));
     const q = s.series.find(v => v.week===ws[i]) || {share:0,n:0};
     cx.setAttribute("x1", x(i)); cx.setAttribute("x2", x(i)); cx.setAttribute("stroke-opacity", .5);
-    tip.hidden = false; tip.style.left = x(i)*r.width/500 + "px"; tip.style.top = y(q.share)*r.height/220 + "px";
+    tip.hidden = false; tip.style.left = x(i)*r.width/VW + "px"; tip.style.top = y(q.share)*r.height/VH + "px";
     tip.textContent = `${lab(ws[i])}: ${Math.round(q.share*100)}%, ${q.n} articles`; };
   svg.querySelector("#hit").onmouseleave = () => { tip.hidden = true; cx.setAttribute("stroke-opacity", 0); };
   $("legend").innerHTML = (D.events.some(e => e.story===sel) ? `<span class="src" style="width:100%">◇ = an event in this story (hover for its name)</span>` : "") + D.stories.map(t => `<button data-id="${t.id}" aria-pressed="${t.id===sel}">${esc(t.name)}${t.retired ? " (ended)" : ""}</button>`).join("");
   document.querySelectorAll(".legend button").forEach(b => b.onclick = () => { sel = +b.dataset.id; render(); });
-}
-
-function timeline(){
-  const s = D.stories.find(s => s.id===sel); if (!s) return;
-  const mx = Math.max(...s.evolution.map(e => e.n), 1);
-  $("tl-title").innerHTML = esc(s.name) + ((s.was || []).length ? `<div class="src" style="font-weight:normal;margin-top:2px">formerly ${s.was.map(w => `“${esc(w.name)}” (until ${lab(w.until)})`).join(", ")}</div>` : "");
-  $("tl").innerHTML = [...s.evolution].reverse().map(e => `<li><div class="wk">${lab(e.week)}<br>${e.n} art.</div>
-    <div><a href="${esc(e.u)}" target="_blank" rel="noopener">${esc(e.h)}</a>${e.n===mx?`<span class="peak">PEAK WEEK</span>`:""}
-    <div class="src">${esc(e.p)}</div><div class="bar ${e.n===mx?"peakbar":""}" style="width:${Math.max(3,100*e.n/mx)}%"></div>
-    ${(() => { const ev = D.events.filter(v => v.story===s.id && v.weeks[e.week]); return ev.length ? `<div class="evs-wk">${ev.map(v => `<span>◇</span> ${esc(v.name)} <span class="src" style="color:inherit">${span(v)}</span>`).join("<br>")}</div>` : ""; })()}</div></li>`).join("");
 }
 
 (async () => {
