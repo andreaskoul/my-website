@@ -218,7 +218,9 @@ function landscape(){
   if (!M) return;
   const n = D.weeks.length, last = mwk === n-1, hi = mhi ?? (mhe === null ? sel : null);
   const cnt = s => last ? s.latest_n : ((s.series[mwk] || {n:0}).n);
-  const alive = {}; D.stories.forEach(s => alive[s.id] = !s.alive || s.alive[mwk]);      // a story shows in the weeks it is alive
+  // a story shows in the weeks it is alive; "now" is the last 7 days (as in Top stories of the week), not the
+  // calendar week just begun, so every story listed there has its title here
+  const alive = {}; D.stories.forEach(s => alive[s.id] = last ? s.latest_n > 0 : !s.alive || s.alive[mwk]);
   let g = M.regions.map(q => `<circle cx="${q.cx}" cy="${q.cy}" r="${q.r+6}" fill="none" stroke="${hi===q.id?"#c00000":"#000"}" stroke-opacity="${hi===q.id?.6:alive[q.id]?.18:.06}" stroke-dasharray="1 3"/>`).join("");
   for (const d of M.dots){
     const on = mhe !== null ? d.e === mhe : hi !== null && d.s === hi, cur = d.slot === mwk && (alive[d.s] || mhe !== null);
