@@ -1,6 +1,8 @@
 # Andreas Koulopoulos
 
-My personal website, served from `site/` on GitHub Pages.
+My personal website: https://andreaskoul.github.io/my-website/
+
+Served from `site/` on GitHub Pages.
 
 - `index.html`: home
 - `cv.html`: CV
