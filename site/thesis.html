@@ -7,13 +7,27 @@
 <style>
 html,body{margin:0;background:#fff;color:#000}
 body{font-family:"Times New Roman",Times,serif}
-.site{max-width:1080px;margin:0 auto;padding:14px 18px 0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 18px}
+.site{position:sticky;top:0;z-index:10;background:#fff;box-shadow:0 0 0 100vmax #fff;clip-path:inset(0 -100vmax);max-width:1080px;margin:0 auto;padding:14px 18px 8px;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 18px}
 .site .me{font-size:17px}
 .site nav{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px}
 .site a{color:#000}
 .site a[aria-current="page"]{color:#c00000}
 .pages{max-width:860px;margin:14px auto 40px;padding:0 18px}
-.pages canvas{display:block;width:100%;height:auto;margin:0 0 14px;border:1px solid rgba(0,0,0,.18);box-sizing:border-box;background:#fff}
+.page{position:relative;margin:0 0 14px;border:1px solid rgba(0,0,0,.18);background:#fff;--user-unit:1;--total-scale-factor:calc(var(--scale-factor) * var(--user-unit));--scale-round-x:1px;--scale-round-y:1px}
+.page canvas{position:absolute;inset:0;width:100%;height:100%}
+/* the text and link layers over each page, from PDF.js's pdf_viewer.css: invisible text (for selection and find in page) and clickable links */
+.textLayer{position:absolute;text-align:initial;inset:0;overflow:clip;line-height:1;letter-spacing:normal;word-spacing:normal;text-size-adjust:none;-webkit-text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0;caret-color:CanvasText;z-index:0;
+  --min-font-size:1;--text-scale-factor:calc(var(--total-scale-factor) * var(--min-font-size));--min-font-size-inv:calc(1 / var(--min-font-size))}
+.textLayer :is(span,br){color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%}
+.textLayer > :not(.markedContent),.textLayer .markedContent span:not(.markedContent){z-index:1;--font-height:0;font-size:calc(var(--text-scale-factor) * var(--font-height));--scale-x:1;--rotate:0deg;transform:rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv))}
+.textLayer .markedContent{display:contents}
+.textLayer ::selection{background:rgba(0,0,255,.25);color:transparent}
+.textLayer br::selection{background:transparent}
+.textLayer .endOfContent{display:block;position:absolute;inset:100% 0 0;z-index:0;cursor:default;user-select:none}
+.annotationLayer{position:absolute;top:0;left:0;pointer-events:none;transform-origin:0 0;z-index:1}
+.annotationLayer section{position:absolute;text-align:initial;pointer-events:auto;box-sizing:border-box;transform-origin:0 0;user-select:none}
+.annotationLayer .linkAnnotation > a{position:absolute;font-size:1em;top:0;left:0;width:100%;height:100%}
+.annotationLayer .linkAnnotation > a:hover{opacity:.2;background:#ff0}
 </style>
 </head>
 <body>
@@ -21,25 +35,59 @@ body{font-family:"Times New Roman",Times,serif}
 <div class="pages" id="pages"></div>
 <script type="module">
 // site/thesis.pdf drawn page by page with PDF.js (site/vendor/pdfjs: v6.3.289, legacy build — the modern one needs very new JavaScript), so the page scrolls like any
-// other on every device (phone browsers show only the first page of a PDF in an <iframe>). A page is drawn
+// other on every device (phone browsers show only the first page of a PDF in an <iframe>). A page's picture is drawn
 // when it comes near the screen; the box for each page is sized first so the scrollbar is right from the start.
+// Over each picture go the page's text (invisible, so it can be selected and found with Ctrl+F; built for every page
+// up front, since find in page only sees what is there) and its links (table of contents, references, URLs).
 import * as pdfjs from "./vendor/pdfjs/pdf.min.mjs";
 pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.min.mjs";
-const box = document.getElementById("pages");
+const box = document.getElementById("pages"), header = document.querySelector(".site");
 try {
   const pdf = await pdfjs.getDocument({url: "thesis.pdf"}).promise;
   const first = (await pdf.getPage(1)).getViewport({scale: 1});
-  const draw = async (canvas) => {
-    const page = await pdf.getPage(+canvas.dataset.n), v1 = page.getViewport({scale: 1});
-    const v = page.getViewport({scale: box.clientWidth / v1.width * Math.min(2, window.devicePixelRatio || 1)});
+  const pages = [], views = [];
+  const fit = () => pages.forEach((d, i) => d.style.setProperty("--scale-factor", d.clientWidth / (views[i] || first).width));
+  // where a link inside the PDF leads: scroll to that page (and to the line, when the link says which)
+  const goTo = async (dest, push = true) => {
+    const d = typeof dest === "string" ? await pdf.getDestination(dest) : dest;
+    if (!Array.isArray(d)) return;
+    const i = typeof d[0] === "object" ? await pdf.getPageIndex(d[0]) : d[0], el = pages[i], v = views[i] || first;
+    if (!el) return;
+    const top = {XYZ: d[3], FitH: d[2], FitBH: d[2]}[d[1]?.name];
+    const y = top == null ? 0 : v.convertToViewportPoint(0, top)[1] / v.height * el.clientHeight;
+    if (push) history.pushState(null, "", "#page=" + (i + 1));
+    window.scrollTo({top: el.getBoundingClientRect().top + scrollY + Math.max(0, y) - header.offsetHeight - 8});
+  };
+  const linkService = {
+    goToDestination: goTo, getDestinationHash: () => "#", getAnchorUrl: () => "#",
+    addLinkAttributes(a, url){ a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer"; },
+    executeNamedAction(){}, executeSetOCGState(){}, getAttachmentContent: async () => null,
+  };
+  const draw = async (div) => {
+    const i = +div.dataset.n - 1, page = await pdf.getPage(i + 1), canvas = document.createElement("canvas");
+    const v = page.getViewport({scale: div.clientWidth / views[i].width * Math.min(2, window.devicePixelRatio || 1)});
     canvas.width = v.width; canvas.height = v.height;
     await page.render({canvas, viewport: v}).promise;
+    div.prepend(canvas);
   };
   const seen = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ seen.unobserve(e.target); draw(e.target); } }), {rootMargin: "1200px 0px"});
   for (let n = 1; n <= pdf.numPages; n++){
-    const c = document.createElement("canvas"); c.dataset.n = n; c.setAttribute("aria-label", "Page " + n);
-    c.width = first.width; c.height = first.height;          // placeholder size until drawn
-    box.appendChild(c); seen.observe(c);
+    const d = document.createElement("div"); d.className = "page"; d.dataset.n = n; d.setAttribute("aria-label", "Page " + n);
+    d.style.aspectRatio = first.width + " / " + first.height;   // placeholder size until the page is read
+    box.appendChild(d); pages.push(d);
+  }
+  fit(); window.addEventListener("resize", fit);
+  const want = /^#page=(\d+)$/.exec(location.hash);
+  for (let i = 0; i < pdf.numPages; i++){
+    const page = await pdf.getPage(i + 1), v = page.getViewport({scale: 1}), d = pages[i];
+    views[i] = v; d.style.aspectRatio = v.width + " / " + v.height; d.style.setProperty("--scale-factor", d.clientWidth / v.width);
+    const text = document.createElement("div"), links = document.createElement("div");
+    text.className = "textLayer"; links.className = "annotationLayer"; d.append(text, links);
+    await new pdfjs.TextLayer({textContentSource: page.streamTextContent(), container: text, viewport: v}).render();
+    await new pdfjs.AnnotationLayer({div: links, page, viewport: v, linkService})
+      .render({annotations: await page.getAnnotations({intent: "display"}), renderForms: false});
+    seen.observe(d);
+    if (want && +want[1] === i + 1) goTo([i, {name: "XYZ"}, null, null], false);
   }
 } catch (e) { /* no thesis.pdf yet: the page stays blank */ }
 </script>
