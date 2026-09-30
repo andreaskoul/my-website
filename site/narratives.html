@@ -18,7 +18,7 @@ header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-be
 h1{font-size:34px;font-weight:bold;margin:0}
 header h1{min-width:0;max-width:100%}
 .pick{position:relative;display:inline-block;max-width:100%}   /* the company picker is the page title; its list opens right under the name */
-.pick button{all:unset;box-sizing:border-box;cursor:pointer;max-width:100%;padding-right:30px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 4px center}
+.pick button{all:unset;box-sizing:border-box;cursor:pointer;max-width:100%;padding-right:24px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 3px center}   /* "Narratives (TICKER)": only the ticker opens the company list */
 .pick button:hover,.pick button[aria-expanded="true"]{color:var(--red)}
 .pick button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .pick ul{position:absolute;z-index:20;top:100%;left:0;margin:2px 0 0;padding:4px 0;list-style:none;min-width:100%;width:max-content;max-height:60vh;overflow-y:auto;background:#fff;border:1px solid var(--ink);font-size:17px;font-weight:normal}
@@ -118,7 +118,7 @@ ol.tl .evs-wk span{color:var(--red)}
 <div class="site"><span class="me">Andreas Koulopoulos</span><nav aria-label="Site"><a href="index.html">home</a><a href="cv.html">cv</a><a href="thesis.html">thesis</a><a href="narratives.html" aria-current="page">narrative landscape</a></nav></div>
 <div class="wrap">
   <header>
-    <h1><span class="pick"><button id="pick" aria-haspopup="listbox" aria-expanded="false" aria-label="Choose a company"></button><ul id="picklist" role="listbox" aria-label="Companies" hidden></ul></span></h1>
+    <h1>Narratives <span class="paren">(</span><span class="pick"><button id="pick" aria-haspopup="listbox" aria-expanded="false" aria-label="Choose a company"></button><ul id="picklist" role="listbox" aria-label="Companies" hidden></ul></span><span class="paren">)</span></h1>
   </header>
   <p class="meta" id="meta">Loading…</p>
   <div class="duo">
@@ -337,7 +337,7 @@ function render(){
   const first = idx.firms.some(f => f.ticker===want) ? want : idx.firms[0].ticker;
   const btn = $("pick"), list = $("picklist"), items = () => [...list.children];
   list.innerHTML = idx.firms.map(f => `<li role="option" tabindex="-1" data-tk="${esc(f.ticker)}">${esc(f.name)}<span class="mono">${esc(f.ticker)}</span></li>`).join("");
-  const show = tk => { const f = idx.firms.find(f => f.ticker === tk); btn.textContent = `${f.name} (${f.ticker})`;
+  const show = tk => { const f = idx.firms.find(f => f.ticker === tk); btn.textContent = f.ticker; btn.setAttribute("aria-label", `Company: ${f.name}. Choose another`);
     items().forEach(li => li.setAttribute("aria-selected", li.dataset.tk === tk)); };
   const close = () => { list.hidden = true; btn.setAttribute("aria-expanded", "false"); };
   const openList = () => { list.hidden = false; btn.setAttribute("aria-expanded", "true");
