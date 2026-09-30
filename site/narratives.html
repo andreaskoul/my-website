@@ -84,17 +84,6 @@ ol.tl .evs-wk span{color:var(--red)}
 .mtip b{display:block;font-size:15px}
 .mtip p{margin:4px 0 0}
 .red{color:var(--red)}
-.scrub{margin:12px 0 0}
-.scrub input{display:block;width:100%;margin:6px 0 2px;height:22px;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none}
-.scrub input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
-.scrub input::-webkit-slider-runnable-track{height:1px;background:var(--ink)}
-.scrub input::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;margin-top:-5.5px;background:var(--red);border:0;border-radius:0}
-.scrub input::-moz-range-track{height:1px;background:var(--ink)}
-.scrub input::-moz-range-thumb{width:12px;height:12px;background:var(--red);border:0;border-radius:0}
-.ticks{position:relative;height:16px;font-family:monospace;font-size:11px}
-.ticks span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
-.ticks span:first-child{transform:none}
-.ticks span:last-child{transform:translateX(-100%)}
 </style>
 </head>
 <body>
@@ -107,9 +96,8 @@ ol.tl .evs-wk span{color:var(--red)}
   <p class="meta" id="meta">Loading…</p>
   <div class="duo">
   <section id="land">
-    <h2>the landscape</h2>
+    <h2>current landscape</h2>
     <div class="mw" id="mw"><svg class="map" id="map" width="100%" role="img" aria-label="Map of the company's news stories"></svg><div class="mtip" id="mtip" hidden></div></div>
-    <div class="scrub"><input type="range" id="wk" min="0" max="1" step="1" value="1" aria-label="Week shown on the map"><div class="ticks" id="ticks"></div></div>
   </section>
   <section id="evcol">
     <h2>latest events</h2>
@@ -193,11 +181,6 @@ function prepMap(){
     if (l){ sel = +l.dataset.id; selEv = null; open.add(sel); return render(); }
     if (M.near) window.open(M.near.a[9], "_blank", "noopener");
   };
-  const sl = $("wk"), step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor($("ticks").clientWidth / 80))));   // a date label per ~80px, "now" always
-  sl.max = n - 1; sl.value = mwk;
-  sl.oninput = () => { if (+sl.value !== mwk){ mwk = +sl.value; landscape(); } };   // redraws while dragging
-  $("ticks").innerHTML = D.weeks.map((w,i) => (i % step === 0 && i < n - 2) || i === n-1
-    ? `<span style="left:${(100*i/(n-1)).toFixed(2)}%">${i===n-1 ? "now" : lab(w)}</span>` : "").join("");
 }
 function tipAt(x, y, html){
   const tip = $("mtip"), r = $("map").getBoundingClientRect(), sx = r.width/M.w, sy = r.height/M.h;
@@ -239,7 +222,6 @@ function landscape(){
     g += `<g class="evl" data-e="${e.id}"><rect x="${X-w/2}" y="${Y-13}" width="${w}" height="17" fill="#fff" fill-opacity=".82" stroke="${on?"#c00000":"none"}"/><text x="${X}" y="${Y}" text-anchor="middle" font-size="12.5" font-style="italic"${on?' fill="#c00000"':""}>${esc(e.name)} <tspan class="m" font-style="normal" font-size="10">${k}</tspan></text></g>`;
   }
   $("map").innerHTML = g;
-  $("wk").value = mwk;
 }
 
 function render(){
