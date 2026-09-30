@@ -1,4 +1,4 @@
-# Andreas Koulopoulos
+# Andreas (Apollo) Koulopoulos
 
 My personal website: https://andreaskoul.github.io/my-website/
 
