@@ -70,13 +70,13 @@ ol.tl .evs-wk span{color:var(--red)}
   #land,#evcol{display:grid;grid-row:1 / 4;grid-template-rows:subgrid}   /* shared rows: titles, then the map and the events between the same two rules */
   #land h2,#evcol h2{margin:0 0 8px}
   .site{max-width:min(1520px, 100vw - 60px)}
-  #evcol .evs{grid-row:2;contain:size;overflow-y:auto;display:flex;flex-direction:column;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+  #evcol .evs{grid-row:2;contain:size;overflow-y:auto;display:flex;flex-direction:column;border-top:1px solid var(--ink)}
   #evcol .ev:first-child{margin-top:auto;border-top:0}     /* centred between the rules; scrolls from the top if it overflows */
   #evcol .ev:last-child{margin-bottom:auto;border-bottom:0}
   #evcol .ev .arts{padding-left:18px}
 }
 #land h2{margin-bottom:8px}
-.mw{position:relative;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+.mw{position:relative;border-top:1px solid var(--ink)}
 .map text{font-family:"Times New Roman",Times,serif;fill:var(--ink);paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
 .map text.m{font-family:monospace;font-size:11px}
 .map .lbl,.map .evl{cursor:pointer}
@@ -85,7 +85,6 @@ ol.tl .evs-wk span{color:var(--red)}
 .mtip p{margin:4px 0 0}
 .red{color:var(--red)}
 .scrub{margin:12px 0 0}
-.scrub .now{font-family:monospace;font-size:13px}
 .scrub input{display:block;width:100%;margin:6px 0 2px;height:22px;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none}
 .scrub input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .scrub input::-webkit-slider-runnable-track{height:1px;background:var(--ink)}
@@ -111,7 +110,7 @@ footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-siz
   <section id="land">
     <h2>the landscape</h2>
     <div class="mw" id="mw"><svg class="map" id="map" width="100%" role="img" aria-label="Map of the company's news stories"></svg><div class="mtip" id="mtip" hidden></div></div>
-    <div class="scrub"><div class="now" id="wkname"></div><input type="range" id="wk" min="0" max="1" step="1" value="1" aria-label="Week shown on the map"><div class="ticks" id="ticks"></div></div>
+    <div class="scrub"><input type="range" id="wk" min="0" max="1" step="1" value="1" aria-label="Week shown on the map"><div class="ticks" id="ticks"></div></div>
   </section>
   <section id="evcol">
     <h2>latest events</h2>
@@ -239,7 +238,6 @@ function landscape(){
     g += `<g class="evl" data-e="${e.id}"><rect x="${X-w/2}" y="${Y-13}" width="${w}" height="17" fill="#fff" fill-opacity=".82" stroke="${on?"#c00000":"none"}"/><text x="${X}" y="${Y}" text-anchor="middle" font-size="12.5" font-style="italic"${on?' fill="#c00000"':""}>${esc(e.name)} <tspan class="m" font-style="normal" font-size="10">${k}</tspan></text></g>`;
   }
   $("map").innerHTML = g;
-  $("wkname").innerHTML = last ? `<b>Now</b> · ${esc(D.latest_from)} – ${esc(D.latest_to)}` : `Week of <b>${lab(D.weeks[mwk])}</b>`;
   $("wk").value = mwk;
 }
 
