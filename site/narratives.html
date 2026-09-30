@@ -55,7 +55,7 @@ ol.tl li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;padding:
 .was{font-family:monospace;font-size:11px}
 .ev{border-top:1px solid var(--faint)}
 .ev:last-child{border-bottom:1px solid var(--faint)}
-.evrow{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:78px minmax(0,1fr) auto;gap:12px;align-items:baseline;width:100%;padding:8px 0}
+.evrow{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:78px minmax(0,1fr);gap:12px;align-items:baseline;width:100%;padding:8px 0}
 .evrow:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .evname{font-weight:bold;font-size:17px}
 .ev.mine .evname{color:var(--red)}
@@ -64,9 +64,11 @@ ol.tl li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;padding:
 ol.tl .evs-wk{margin-top:5px;font-size:14px}
 ol.tl .evs-wk span{color:var(--red)}
 .duo{display:grid;grid-template-columns:minmax(0,1fr);gap:30px;margin-top:22px;align-items:start}
-@media (min-width:1100px){   /* wide screens: the landscape and its events side by side, the pair wider than the text column */
-  .duo{grid-template-columns:minmax(0,2.2fr) minmax(320px,1fr);gap:32px;margin-inline:calc(50% - min(760px, 50vw - 30px))}
-  #evcol{position:sticky;top:56px;max-height:calc(100vh - 72px);overflow-y:auto;padding-right:6px}
+@media (min-width:1100px){   /* wide screens: the landscape and its events side by side, the pair (and the headers above) wider than the text column */
+  .duo{grid-template-columns:minmax(0,2.2fr) minmax(320px,1fr);gap:32px}
+  .duo,header,.meta{margin-inline:calc(50% - min(760px, 50vw - 30px))}
+  .site{max-width:min(1520px, 100vw - 60px)}
+  #evcol{position:sticky;top:56px;max-height:calc(100vh - 72px);overflow-y:auto}
   #evcol .ev .arts{padding-left:18px}
 }
 #land h2{margin-bottom:8px}
@@ -109,7 +111,6 @@ footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-siz
   </section>
   <section id="evcol">
     <h2>latest events</h2>
-    <p class="sub" id="ev-range"></p>
     <div class="evs" id="events"></div>
   </section>
   </div>
@@ -152,13 +153,10 @@ const span = e => { const a = lab(e.start), b = lab(e.end); return a===b ? a : a
 function events(){
   const now = D.events.filter(e => e.latest_n > 0), earlier = D.events.filter(e => e.latest_n === 0);
   const list = now.concat(earlier.slice(0, Math.max(0, 5 - now.length)));   // at least five, newest first
-  $("ev-range").textContent = (now.length ? `${now.length} this week, ` : "None this week yet, ") +
-    "then the latest before it. An event is a burst of articles about one happening, within a few days. Open one to read them.";
   $("events").innerHTML = list.length ? list.map(e => {
     const st = D.stories.find(s => s.id===e.story), isOpen = evOpen.has(e.id);
     return `<div class="ev ${e.story===sel?"mine":""}"><button class="evrow" data-id="${e.id}" aria-expanded="${isOpen}">
-      <span class="wk">${span(e)}</span><span><span class="evname">${esc(e.name)}</span><div class="evst">${esc(st ? st.name : "")}</div></span>
-      <span class="num"><span>${e.n} art.</span></span></button>
+      <span class="wk">${span(e)}</span><span><span class="evname">${esc(e.name)}</span><div class="evst">${esc(st ? st.name : "")}</div></span></button>
       ${isOpen ? `<ul class="arts">${e.top.map(a => `<li><a href="${esc(a.u)}" target="_blank" rel="noopener">${esc(a.t)}</a><div class="src">${esc(a.p)} · ${esc(a.date)}</div></li>`).join("")}</ul>` : ""}</div>`;
   }).join("") : `<p class="sub">No events found in this window.</p>`;
   document.querySelectorAll(".evrow").forEach(b => b.onclick = () => {
