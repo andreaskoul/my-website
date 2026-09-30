@@ -16,12 +16,17 @@ body{margin:0;background:#fff;color:var(--ink);font-family:"Times New Roman",Tim
 .site a[aria-current="page"]{color:#c00000}
 header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px}
 h1{font-size:34px;font-weight:bold;margin:0}
-h1 select{font:inherit;color:var(--ink);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 4px center;border:0;padding:0 30px 0 0;margin:0;cursor:pointer;-webkit-appearance:none;appearance:none;max-width:100%}   /* the company picker is the page title */
 header h1{min-width:0;max-width:100%}
+.pick{position:relative;display:inline-block;max-width:100%}   /* the company picker is the page title; its list opens right under the name */
+.pick button{all:unset;box-sizing:border-box;cursor:pointer;max-width:100%;padding-right:30px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 4px center}
+.pick button:hover,.pick button[aria-expanded="true"]{color:var(--red)}
+.pick button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.pick ul{position:absolute;z-index:20;top:100%;left:0;margin:2px 0 0;padding:4px 0;list-style:none;min-width:100%;width:max-content;max-height:60vh;overflow-y:auto;background:#fff;border:1px solid var(--ink);font-size:17px;font-weight:normal}
+.pick li{padding:3px 14px;cursor:pointer;white-space:nowrap}
+.pick li[aria-selected="true"]{color:var(--red)}
+.pick li:hover,.pick li:focus{text-decoration:underline;outline:none}
+.pick li .mono{margin-left:6px}
 @media (max-width:520px){h1,#method h2{font-size:26px}}
-h1 select:hover{color:var(--red)}
-h1 select option{font-size:17px;font-weight:normal;color:var(--ink);background:#fff}   /* the open list reads as plain text, not 34px titles */
-h1 select:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 select{font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1px solid var(--ink);padding:3px 6px}
 .meta{font-size:14px;margin:8px 0 0}
 .mono{font-family:monospace;font-size:.86em}
@@ -113,7 +118,7 @@ ol.tl .evs-wk span{color:var(--red)}
 <div class="site"><span class="me">Andreas Koulopoulos</span><nav aria-label="Site"><a href="index.html">home</a><a href="cv.html">cv</a><a href="thesis.html">thesis</a><a href="narratives.html" aria-current="page">narrative landscape</a></nav></div>
 <div class="wrap">
   <header>
-    <h1><select id="pick" aria-label="Choose a company"></select></h1>
+    <h1><span class="pick"><button id="pick" aria-haspopup="listbox" aria-expanded="false" aria-label="Choose a company"></button><ul id="picklist" role="listbox" aria-label="Companies" hidden></ul></span></h1>
   </header>
   <p class="meta" id="meta">Loading…</p>
   <div class="duo">
@@ -328,13 +333,27 @@ function render(){
 (async () => {
   let idx;
   try { idx = await (await fetch("data/index.json")).json(); } catch(e) { $("meta").textContent = "Could not load the company list."; return; }
-  $("pick").innerHTML = idx.firms.map(f => `<option value="${esc(f.ticker)}">${esc(f.name)} (${esc(f.ticker)})</option>`).join("");
   const want = decodeURIComponent(location.hash.slice(1));
   const first = idx.firms.some(f => f.ticker===want) ? want : idx.firms[0].ticker;
-  const fit = () => { const p = $("pick"), m = document.createElement("span");    // the box hugs the chosen name, so the arrow sits right after it
-    m.style.cssText = "position:absolute;visibility:hidden;white-space:pre;font:" + getComputedStyle(p).font;
-    m.textContent = p.options[p.selectedIndex].text; document.body.append(m); p.style.width = (m.offsetWidth + 32) + "px"; m.remove(); };
-  $("pick").value = first; fit(); $("pick").onchange = e => { fit(); load(e.target.value); };
+  const btn = $("pick"), list = $("picklist"), items = () => [...list.children];
+  list.innerHTML = idx.firms.map(f => `<li role="option" tabindex="-1" data-tk="${esc(f.ticker)}">${esc(f.name)}<span class="mono">${esc(f.ticker)}</span></li>`).join("");
+  const show = tk => { const f = idx.firms.find(f => f.ticker === tk); btn.textContent = `${f.name} (${f.ticker})`;
+    items().forEach(li => li.setAttribute("aria-selected", li.dataset.tk === tk)); };
+  const close = () => { list.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+  const openList = () => { list.hidden = false; btn.setAttribute("aria-expanded", "true");
+    (items().find(li => li.getAttribute("aria-selected") === "true") || items()[0]).focus(); };
+  const pick = tk => { close(); btn.focus(); if (tk !== D?.ticker){ show(tk); load(tk); } };
+  btn.onclick = () => list.hidden ? openList() : close();
+  btn.onkeydown = e => { if (e.key === "ArrowDown"){ e.preventDefault(); openList(); } };
+  list.onclick = e => { const li = e.target.closest("li"); if (li) pick(li.dataset.tk); };
+  list.onkeydown = e => {
+    const all = items(), i = all.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp"){ e.preventDefault(); all[Math.max(0, Math.min(all.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))].focus(); }
+    else if (e.key === "Enter" || e.key === " "){ e.preventDefault(); if (i >= 0) pick(all[i].dataset.tk); }
+    else if (e.key === "Escape" || e.key === "Tab"){ close(); btn.focus(); }
+  };
+  document.addEventListener("click", e => { if (!e.target.closest(".pick")) close(); });
+  show(first);
   load(first);
 })();
 </script>
