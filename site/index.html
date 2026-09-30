@@ -12,18 +12,14 @@ body{font-family:"Times New Roman",Times,serif}
 .site nav{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px}
 .site a{color:#000}
 .site a[aria-current="page"]{color:#c00000}
-.home{max-width:1080px;margin:0 auto;padding:28px 18px 60px;font-size:17px;line-height:1.45;display:grid;gap:34px}
-.home h2{font-size:22px;margin:0 0 8px}
-.home p{margin:0 0 10px;max-width:72ch}
-.home section > :last-child{margin-bottom:0}
+.home{max-width:1080px;margin:0 auto;padding:40px 18px 72px;font-size:17px;line-height:1.5;display:grid;gap:40px}
 .home a{color:#000}
 .home a:hover{color:#c00000}
-.now{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px 36px}
-@media (max-width:760px){.now{grid-template-columns:minmax(0,1fr)}}
-.now h3{font-size:17px;margin:0 0 4px}
-.ph{color:#777;font-style:italic}
-.books{margin:0;padding-left:20px}
-.books li{margin:0 0 4px}
+.lead{font-size:26px;line-height:1.3;margin:0;max-width:30ch;text-wrap:balance}
+.flow{display:grid;gap:12px;max-width:66ch}
+.flow p{margin:0}
+.ph{color:#999}
+.books{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-style:italic}
 .fig{margin:0;display:grid;gap:8px}
 .fig .scroll{overflow-x:auto}
 .fig svg{display:block;width:100%;height:auto;min-width:720px;max-width:1000px;color:#000;font-family:"Times New Roman",Times,serif;overflow:visible}
@@ -45,19 +41,13 @@ body{font-family:"Times New Roman",Times,serif}
 <body>
 <div class="site"><span class="me">Andreas Koulopoulos</span><nav aria-label="Site"><a href="index.html" aria-current="page">home</a><a href="cv.html">cv</a><a href="thesis.html">thesis</a><a href="narratives.html">narrative landscape</a></nav></div>
 <main class="home">
-  <section>
-    <h2>manifesto</h2>
-    <p class="ph">[Placeholder: a few paragraphs on what you believe about your field, the questions that drive you, and what you want your work to change.]</p>
-  </section>
-  <section class="now">
-    <div><h3>working on</h3><p class="ph">[Placeholder: current projects and roles.]</p></div>
-    <div><h3>studying</h3><p class="ph">[Placeholder: what you are studying now.]</p></div>
-    <div><h3>researching, and why</h3><p class="ph">[Placeholder: your research questions and the reasons behind them.]</p></div>
-  </section>
-  <section>
-    <h2>narrative landscape</h2>
-    <p>Every morning each company's news is turned into vector representations in a latent space and clustered into narratives. Each narrative's trajectory is followed over thirteen weeks, from birth to death, with the distinct events inside it. <a href="narratives.html">Open the narrative landscape</a>; its method is at the end of that page.</p>
-    <figure class="fig">
+  <p class="lead ph">[ ]</p>
+  <div class="flow">
+    <p class="ph">[ ]</p>
+    <p class="ph">[ ]</p>
+    <p class="ph">[ ]</p>
+  </div>
+  <figure class="fig">
       <div class="scroll">
       <svg viewBox="0 0 960 300" role="img" aria-label="Two newswires feed a daily collection into a thirteen-week archive; an embedding model turns each article into a vector representation in latent space; the representations are clustered into narratives whose trajectories and events are tracked, with a language model and a memory of past narratives; the result is shown on the Narratives page.">
         <defs>
@@ -85,20 +75,16 @@ body{font-family:"Times New Roman",Times,serif}
         <line class="ln" x1="670" y1="184" x2="670" y2="234" marker-start="url(#a1)" marker-end="url(#a1)"/><text class="lab" x="678" y="213">recalls, updates</text>
       </svg>
       </div>
+      <figcaption><a href="narratives.html">narrative landscape</a></figcaption>
     </figure>
-  </section>
-  <section>
-    <h2>books</h2>
-    <ol class="books">
-      <li class="ph">[Placeholder: title, author]</li>
-      <li class="ph">[Placeholder: title, author]</li>
-      <li class="ph">[Placeholder: title, author]</li>
-    </ol>
-  </section>
-  <section>
-    <h2>learning trajectory</h2>
-    <p class="ph">[Placeholder: how these books and studies connect, where they are leading you, and what comes next.]</p>
-  </section>
+  <div class="flow">
+    <ul class="books">
+      <li class="ph">[ ]</li>
+      <li class="ph">[ ]</li>
+      <li class="ph">[ ]</li>
+    </ul>
+    <p class="ph">[ ]</p>
+  </div>
 </main>
 <script>if (/^#[A-Z.]+$/.test(location.hash)) location.replace("narratives.html" + location.hash);   // old links such as /#NVDA</script>
 </body>
