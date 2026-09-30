@@ -16,7 +16,11 @@ body{margin:0;background:#fff;color:var(--ink);font-family:"Times New Roman",Tim
 .site a[aria-current="page"]{color:#c00000}
 header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px}
 h1{font-size:34px;font-weight:bold;margin:0}
-h1 small{font-family:monospace;font-size:14px;font-weight:normal;margin-left:8px}
+h1 select{font:inherit;color:var(--ink);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 4px center;border:0;padding:0 30px 0 0;margin:0;cursor:pointer;-webkit-appearance:none;appearance:none;max-width:100%}   /* the company picker is the page title */
+header h1{min-width:0;max-width:100%}
+@media (max-width:520px){h1,#method h2{font-size:26px}}
+h1 select:hover{color:var(--red)}
+h1 select:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 select{font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1px solid var(--ink);padding:3px 6px}
 .meta{font-size:14px;margin:8px 0 0}
 .mono{font-family:monospace;font-size:.86em}
@@ -108,8 +112,7 @@ ol.tl .evs-wk span{color:var(--red)}
 <div class="site"><span class="me">Andreas Koulopoulos</span><nav aria-label="Site"><a href="index.html">home</a><a href="cv.html">cv</a><a href="thesis.html">thesis</a><a href="narratives.html" aria-current="page">narrative landscape</a></nav></div>
 <div class="wrap">
   <header>
-    <h1 id="title">Narratives</h1>
-    <label>Company &nbsp;<select id="pick" aria-label="Choose a company"></select></label>
+    <h1><select id="pick" aria-label="Choose a company"></select></h1>
   </header>
   <p class="meta" id="meta">Loading…</p>
   <div class="duo">
@@ -207,7 +210,6 @@ async function load(tk){
   D.order = D.stories.filter(s => !s.retired || s.latest_n > 0).sort((a,b) => b.latest_n - a.latest_n);   // ended stories leave the list
   sel = D.order[0]?.id; selEv = null; open = new Set(); evOpen = new Set();                 // articles stay hidden until a story is opened
   D.events = D.events || [];
-  $("title").innerHTML = esc(D.name) + "<small>" + esc(D.ticker) + "</small>";
   document.title = D.name + " — Narrative landscape";
   $("meta").textContent = "";
   $("range").textContent = `${D.latest_from} – ${D.latest_to}, ranked by how much was written. Open a story to read its articles.`;
@@ -328,7 +330,10 @@ function render(){
   $("pick").innerHTML = idx.firms.map(f => `<option value="${esc(f.ticker)}">${esc(f.name)} (${esc(f.ticker)})</option>`).join("");
   const want = decodeURIComponent(location.hash.slice(1));
   const first = idx.firms.some(f => f.ticker===want) ? want : idx.firms[0].ticker;
-  $("pick").value = first; $("pick").onchange = e => load(e.target.value);
+  const fit = () => { const p = $("pick"), m = document.createElement("span");    // the box hugs the chosen name, so the arrow sits right after it
+    m.style.cssText = "position:absolute;visibility:hidden;white-space:pre;font:" + getComputedStyle(p).font;
+    m.textContent = p.options[p.selectedIndex].text; document.body.append(m); p.style.width = (m.offsetWidth + 32) + "px"; m.remove(); };
+  $("pick").value = first; fit(); $("pick").onchange = e => { fit(); load(e.target.value); };
   load(first);
 })();
 </script>
