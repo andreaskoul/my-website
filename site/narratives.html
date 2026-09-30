@@ -63,7 +63,12 @@ ol.tl li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;padding:
 .ev .arts{padding-left:90px}
 ol.tl .evs-wk{margin-top:5px;font-size:14px}
 ol.tl .evs-wk span{color:var(--red)}
-#land{margin-top:22px}
+.duo{display:grid;grid-template-columns:minmax(0,1fr);gap:30px;margin-top:22px;align-items:start}
+@media (min-width:1100px){   /* wide screens: the landscape and its events side by side, the pair wider than the text column */
+  .duo{grid-template-columns:minmax(0,2.2fr) minmax(320px,1fr);gap:32px;margin-inline:calc(50% - min(760px, 50vw - 30px))}
+  #evcol{position:sticky;top:56px;max-height:calc(100vh - 72px);overflow-y:auto;padding-right:6px}
+  #evcol .ev .arts{padding-left:18px}
+}
 #land h2{margin-bottom:8px}
 .mw{position:relative;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
 .map text{font-family:"Times New Roman",Times,serif;fill:var(--ink);paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
@@ -96,16 +101,18 @@ footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-siz
     <label>Company &nbsp;<select id="pick" aria-label="Choose a company"></select></label>
   </header>
   <p class="meta" id="meta">Loading…</p>
+  <div class="duo">
   <section id="land">
     <h2>the landscape</h2>
     <div class="mw" id="mw"><svg class="map" id="map" width="100%" role="img" aria-label="Map of the company's news stories"></svg><div class="mtip" id="mtip" hidden></div></div>
     <div class="scrub"><div class="now" id="wkname"></div><input type="range" id="wk" min="0" max="1" step="1" value="1" aria-label="Week shown on the map"><div class="ticks" id="ticks"></div></div>
   </section>
-  <section class="blk">
+  <section id="evcol">
     <h2>latest events</h2>
     <p class="sub" id="ev-range"></p>
     <div class="evs" id="events"></div>
   </section>
+  </div>
   <section class="blk">
     <h2>top stories of the week</h2>
     <p class="sub" id="range"></p>
