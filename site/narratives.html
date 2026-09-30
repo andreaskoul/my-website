@@ -65,10 +65,14 @@ ol.tl .evs-wk{margin-top:5px;font-size:14px}
 ol.tl .evs-wk span{color:var(--red)}
 .duo{display:grid;grid-template-columns:minmax(0,1fr);gap:30px;margin-top:22px;align-items:start}
 @media (min-width:1100px){   /* wide screens: the landscape and its events side by side, the pair (and the headers above) wider than the text column */
-  .duo{grid-template-columns:minmax(0,2.2fr) minmax(320px,1fr);gap:32px}
-  .duo,header,.meta{margin-inline:calc(50% - min(760px, 50vw - 30px))}
+  .duo{grid-template-columns:minmax(0,2.2fr) minmax(320px,1fr);grid-template-rows:auto auto auto;gap:0 32px}
+  .duo,header,.meta,#top,footer{margin-inline:calc(50% - min(760px, 50vw - 30px))}
+  #land,#evcol{display:grid;grid-row:1 / 4;grid-template-rows:subgrid}   /* shared rows: titles, then the map and the events between the same two rules */
+  #land h2,#evcol h2{margin:0 0 8px}
   .site{max-width:min(1520px, 100vw - 60px)}
-  #evcol{position:sticky;top:56px;max-height:calc(100vh - 72px);overflow-y:auto}
+  #evcol .evs{grid-row:2;contain:size;overflow-y:auto;display:flex;flex-direction:column;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+  #evcol .ev:first-child{margin-top:auto;border-top:0}     /* centred between the rules; scrolls from the top if it overflows */
+  #evcol .ev:last-child{margin-bottom:auto;border-bottom:0}
   #evcol .ev .arts{padding-left:18px}
 }
 #land h2{margin-bottom:8px}
@@ -114,7 +118,7 @@ footer{margin-top:36px;border-top:1px solid var(--ink);padding-top:10px;font-siz
     <div class="evs" id="events"></div>
   </section>
   </div>
-  <section class="blk">
+  <section class="blk" id="top">
     <h2>top stories of the week</h2>
     <p class="sub" id="range"></p>
     <div id="stories"></div>
