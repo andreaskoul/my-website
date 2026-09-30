@@ -66,7 +66,7 @@ ol.tl .evs-wk span{color:var(--red)}
 .duo{display:grid;grid-template-columns:minmax(0,1fr);gap:30px;margin-top:22px;align-items:start}
 @media (min-width:1100px){   /* wide screens: the landscape and its events side by side, the pair (and the headers above) wider than the text column */
   .duo{grid-template-columns:minmax(0,2.7fr) minmax(300px,1fr);grid-template-rows:auto auto auto;gap:0 32px}
-  .duo,header,.meta,#top{margin-inline:calc(50% - min(760px, 50vw - 30px))}
+  .duo,header,.meta,#top,#method{margin-inline:calc(50% - min(760px, 50vw - 30px))}
   #land,#evcol{display:grid;grid-row:1 / 4;grid-template-rows:subgrid}   /* shared rows: titles, then the map and the events between the same two rules */
   #land h2,#evcol h2{margin:0 0 8px}
   .site{max-width:min(1520px, 100vw - 60px)}
@@ -84,6 +84,23 @@ ol.tl .evs-wk span{color:var(--red)}
 .mtip b{display:block;font-size:15px}
 .mtip p{margin:4px 0 0}
 .red{color:var(--red)}
+.fig{margin:0;display:grid;gap:8px}
+.fig .scroll{overflow-x:auto}
+.fig svg{display:block;width:100%;height:auto;min-width:720px;max-width:1000px;color:#000;font-family:"Times New Roman",Times,serif;overflow:visible}
+.fig figcaption{font-size:14px;font-style:italic;max-width:72ch}
+.fig svg text{fill:currentColor}
+.fig svg .t{font-size:14px;font-weight:bold}
+.fig svg .s{font-size:12px;fill:#555}
+.fig svg .lab{font-size:11.5px;fill:#555;font-style:italic}
+.fig svg .box{fill:#fff;stroke:currentColor;stroke-width:1}
+.fig svg .ext{fill:#fff;stroke:currentColor;stroke-width:1;stroke-dasharray:2 3}
+.fig svg .store{fill:#fff;stroke:#555;stroke-width:1}
+.fig svg .llm{stroke:#c00000;stroke-width:1.6}
+.fig svg .tag{fill:#c00000;font-size:11px;letter-spacing:.06em}
+.fig svg .ln{stroke:currentColor;stroke-width:1.2;fill:none}
+.fig svg .dash{stroke:#555;stroke-width:1.1;fill:none;stroke-dasharray:4 3}
+.fig svg .dot{fill:currentColor}
+#method{margin-top:40px}
 </style>
 </head>
 <body>
@@ -108,6 +125,70 @@ ol.tl .evs-wk span{color:var(--red)}
     <h2>top stories of the week</h2>
     <p class="sub" id="range"></p>
     <div id="stories"></div>
+  </section>
+  <section class="blk" id="method">
+    <h2>method</h2>
+    <figure class="fig">
+      <div class="scroll">
+      <svg viewBox="0 0 960 920" role="img" aria-label="For each company: news fetch, with embedding and duplicate removal, then narrative clustering in embedding space. The narratives update then branches: weekly, it re-clusters the latent space and matches narratives to last week's. Every day: new narrative detection, article assignment, company relevance check, summarise latest narratives, distinct event detection, landscape map and publish of each narrative's trajectory. A language model helps with naming, summaries and events; a memory keeps centroids, assignments, summaries and events between runs.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        </defs>
+
+        <rect class="box" x="40" y="16" width="520" height="56"/><text class="t" x="60" y="38">News Fetch</text><text class="s" x="60" y="59">13 weeks of headlines and summaries for 20 companies, from two newswires</text>
+        <rect class="box" x="620" y="16" width="300" height="56"/><text class="t" x="640" y="38">Embed and Remove Duplicates</text><text class="s" x="640" y="59">near-identical vectors collapse into one article</text>
+        <line class="ln" x1="562" y1="44" x2="618" y2="44" marker-start="url(#a2)" marker-end="url(#a2)"/>
+        <line class="ln" x1="300" y1="72" x2="300" y2="100" marker-end="url(#a2)"/>
+        <rect class="box" x="40" y="102" width="520" height="56"/><text class="t" x="60" y="124">Narrative Clustering</text><text class="s" x="60" y="145">similar meaning means nearby points in latent space; dense regions are narratives</text>
+        <rect class="store" x="620" y="102" width="300" height="56"/><text class="t" x="640" y="124">Embedding cache</text><text class="s" x="640" y="144">each article is embedded only once</text>
+        <line class="dash" x1="562" y1="130" x2="618" y2="130" marker-start="url(#a2)" marker-end="url(#a2)"/>
+        <line class="ln" x1="300" y1="158" x2="300" y2="190" marker-end="url(#a2)"/>
+
+        <polygon class="box" points="300,192 440,236 300,280 160,236"/>
+        <text class="t" x="300" y="233" text-anchor="middle">Narratives Update</text>
+        <text class="s" x="300" y="251" text-anchor="middle">on Mondays</text>
+        <line class="ln" x1="440" y1="236" x2="618" y2="236" marker-end="url(#a2)"/><text class="lab" x="530" y="228" text-anchor="middle">weekly</text>
+        <line class="ln" x1="300" y1="280" x2="300" y2="378" marker-end="url(#a2)"/><text class="lab" x="308" y="330">daily</text>
+
+        <rect class="box llm" x="620" y="180" width="300" height="130"/><text class="t" x="640" y="202">Re-clustering</text><text class="tag" x="908" y="200" text-anchor="end">LANGUAGE MODEL</text>
+        <text class="s" x="640" y="226">keep the clusters that are about the company</text>
+        <text class="s" x="640" y="244">split them into stable narrative clusters</text>
+        <text class="s" x="640" y="262">matched to last week's centroids: survivors</text>
+        <text class="s" x="640" y="280">keep names, births are named, the rest die</text>
+        <line class="ln" x1="620" y1="300" x2="304" y2="300"/><circle class="dot" cx="300" cy="300" r="3.5"/><text class="lab" x="460" y="292" text-anchor="middle">continues</text>
+        <line class="ln" x1="770" y1="310" x2="770" y2="338" marker-end="url(#a2)"/><text class="lab" x="778" y="328">remembers</text>
+
+        <rect class="store" x="620" y="340" width="300" height="408"/>
+        <text class="t" x="640" y="362">Memory</text><text class="s" x="640" y="380">state carried between runs</text>
+        <text class="s" x="640" y="412">narrative centroids in latent space</text>
+        <text class="s" x="640" y="490">each article's narrative, fixed once set</text>
+        <text class="s" x="640" y="568">base rate of naming the company</text>
+        <text class="s" x="640" y="646">summaries already written</text>
+        <text class="s" x="640" y="724">events already judged and named</text>
+
+        <rect class="box llm" x="40" y="380" width="520" height="56"/><text class="t" x="60" y="402">New Narrative Detection</text><text class="tag" x="548" y="400" text-anchor="end">LANGUAGE MODEL</text><text class="s" x="60" y="423">recent points far from every centroid form a dense, new cluster: a narrative is born</text>
+        <line class="ln" x1="300" y1="436" x2="300" y2="456" marker-end="url(#a2)"/>
+        <rect class="box" x="40" y="458" width="520" height="56"/><text class="t" x="60" y="480">Article Assignment</text><text class="s" x="60" y="501">an article joins its nearest narrative only if similar enough; it is never reassigned</text>
+        <line class="ln" x1="300" y1="514" x2="300" y2="534" marker-end="url(#a2)"/>
+        <rect class="box" x="40" y="536" width="520" height="56"/><text class="t" x="60" y="558">Company Relevance Check</text><text class="s" x="60" y="579">a narrative whose articles rarely name the company is hidden</text>
+        <line class="ln" x1="300" y1="592" x2="300" y2="612" marker-end="url(#a2)"/>
+        <rect class="box llm" x="40" y="614" width="520" height="56"/><text class="t" x="60" y="636">Summarise Latest Narratives</text><text class="tag" x="548" y="634" text-anchor="end">LANGUAGE MODEL</text><text class="s" x="60" y="657">two sentences from the week's articles nearest each narrative's centroid</text>
+        <line class="ln" x1="300" y1="670" x2="300" y2="690" marker-end="url(#a2)"/>
+        <rect class="box llm" x="40" y="692" width="520" height="56"/><text class="t" x="60" y="714">Distinct Event Detection</text><text class="tag" x="548" y="712" text-anchor="end">LANGUAGE MODEL</text><text class="s" x="60" y="735">similarity decayed by time apart clusters short bursts; opinion pieces are dropped</text>
+        <line class="ln" x1="300" y1="748" x2="300" y2="768" marker-end="url(#a2)"/>
+        <rect class="box" x="40" y="770" width="520" height="56"/><text class="t" x="60" y="792">Landscape Map</text><text class="s" x="60" y="813">latent space projected to 2D: one region per narrative, its articles inside</text>
+        <line class="ln" x1="300" y1="826" x2="300" y2="846" marker-end="url(#a2)"/>
+        <rect class="box" x="40" y="848" width="520" height="56"/><text class="t" x="60" y="870">Publish</text><text class="s" x="60" y="891">each narrative's trajectory (weekly share), its birth or death, and its events</text>
+
+        <line class="dash" x1="562" y1="408" x2="618" y2="408" marker-start="url(#a2)" marker-end="url(#a2)"/>
+        <line class="dash" x1="562" y1="486" x2="618" y2="486" marker-start="url(#a2)" marker-end="url(#a2)"/>
+        <line class="dash" x1="562" y1="564" x2="618" y2="564" marker-start="url(#a2)" marker-end="url(#a2)"/>
+        <line class="dash" x1="562" y1="642" x2="618" y2="642" marker-start="url(#a2)" marker-end="url(#a2)"/>
+        <line class="dash" x1="562" y1="720" x2="618" y2="720" marker-start="url(#a2)" marker-end="url(#a2)"/>
+      </svg>
+      </div>
+      <figcaption>Red outline: a language model does part of the work, on a handful of headlines at a time. Dashed arrows: the step reads and updates the memory. The latent space is re-clustered once a week; on other days narratives can only be born, and an article's assignment never changes, so a narrative that dies keeps its trajectory.</figcaption>
+    </figure>
   </section>
 </div>
 <script>
