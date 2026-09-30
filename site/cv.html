@@ -14,7 +14,9 @@ body{font-family:"Times New Roman",Times,serif}
 .site a[aria-current="page"]{color:#c00000}
 .cv{max-width:1080px;margin:0 auto;padding:28px 18px 60px;font-size:16px;line-height:1.4}
 .cv h2{font-size:19px;margin:28px 0 4px}
+.cv{display:grid;grid-template-columns:1fr 1fr;gap:0 48px;align-items:start}
 .cv h2:first-child{margin-top:0}
+@media (max-width:720px){.cv{grid-template-columns:1fr}.cv section+section h2:first-child{margin-top:28px}}
 .cv .e{margin:14px 0 0}
 .cv .d{font-size:14px}
 .cv ul{margin:4px 0 0;padding-left:20px}
@@ -24,6 +26,7 @@ body{font-family:"Times New Roman",Times,serif}
 <body>
 <div class="site"><span class="me">Andreas Koulopoulos</span><nav aria-label="Site"><a href="index.html">home</a><a href="cv.html" aria-current="page">cv</a><a href="thesis.html">thesis</a><a href="narratives.html">narrative landscape</a></nav></div>
 <main class="cv">
+<section>
 <h2>Education</h2>
 <div class="e"><b>Vrije Universiteit Amsterdam</b><br>MSc Finance, Honours Programme in Quantitative Finance
   <div class="d">Sep 2025 – Jun 2026</div>
@@ -33,8 +36,9 @@ body{font-family:"Times New Roman",Times,serif}
 <div class="e"><b>National Technical University of Athens</b><br>Integrated Master of Science, Mechanical Engineering
   <div class="d">2016 – 2023</div>
   <p>Thesis: A local search meta-heuristic algorithm for solving the capacitated electric vehicle routing problem with partial recharging and multiple trips</p></div>
-
-<h2>Experience</h2>
+</section>
+<section>
+<h2>Professional Experience</h2>
 <div class="e"><b>MIT AI Mantis Rising Scholar</b>, Mantis AI
   <div class="d">May 2026 – present · MIT, Massachusetts, United States</div>
   <ul><li>Conducting research in representational learning approaches for financial time-series data</li></ul></div>
@@ -49,6 +53,7 @@ body{font-family:"Times New Roman",Times,serif}
   <div class="d">Sep 2019 – Feb 2020</div></div>
 <div class="e"><b>Test Engineer</b>, Atos
   <div class="d">Jul 2018 – Nov 2018 · Athens, Greece</div></div>
+</section>
 </main>
 </body>
 </html>
