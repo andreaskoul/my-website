@@ -47,13 +47,35 @@ body{font-family:"Times New Roman",Times,serif}
 <div class="site"><span class="me">Andreas (Apollo) Koulopoulos</span><nav aria-label="Site"><a href="index.html" aria-current="page">home</a><a href="cv.html">cv</a><a href="thesis.html">thesis</a><a href="narratives.html">narrative landscape</a></nav></div>
 <main class="home">
   <section>
+    <img src="https://imgs.search.brave.com/pSCmCNa1vy5wyMe-FICt0Ch-vNNoa7r8qZ3j0qRAj2U/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS5nZXR0eWltYWdl/cy5jb20vaWQvMTU5/OTIwMTc3OS92ZWN0/b3IvYXBvbGxvLW9m/LWJlbHZlZGVyZS5q/cGc_cz02MTJ4NjEy/Jnc9MCZrPTIwJmM9/NmE4dVlFbTNuZThf/YjJDU1dvYi1uZzdp/c1dEcWtSNkdNZ2FX/WmdfWE9Ubz0" height="250p">
+  </section><section>
+    <p>I studied finance, cognitive science and mechanical engineering, and I'm looking for a funded PhD position in Europe.</p>
+  </section>
+<section>
     <h2>manifesto</h2>
-    <p class="ph">[Placeholder: a few paragraphs on what you believe about your field, the questions that drive you, and what you want your work to change.]</p>
+    <p class="h">Most of what happens in an economic reality is unobservable. Firms make things, people work, deals are struck and events take place but what others get to see is a record of them. What becomes real is what gets measured and recorded, such as corporate filings, press coverage, analyst notes, etc. Agents act on those recordings and not on the underlying productive forces, thus recording directs the flow and decides which production is repeated, financed and extended. 
+</p>
+<p class="h">
+I call this recording layer the public information layer (PIL). In Deleuze and Guattari’s terms it is the process of inscription onto a recording surface. Under capitalism the surface is the capital-socius, whose full body is money and the price system, and the PIL is how flows of production are inscribed into it. The flows of production, in their abstract form, engulf all processes that are operating through the channels of services and products and the relations around them, which include all socio-economic relations that can be commodified (i.e. trade, coalitions, research, wars, etc.). Inscription is also appropriation. What the surface records is attributed back to the entity (that being a firm, a market, a country, etc.) as if the surface were the source of the production forces that constitute it. Marx saw this when he noted that the productive forces of social labour appear as the productive forces of capital (The German Ideology, Marx, Engels). The relations of production that people enter on the basis of the productive forces, and which are a condition of those forces’ further development, reach society largely in this inscribed form.
+</p>
+<p class="h">
+Inscription is uneven and is governed by power and attention; some flows are recorded cleanly, others are ambiguous, or never recorded. This unevenness is not noise around the process but the actual process.
+</p>
+<p class="h">
+My work is on encoding methods that represent this process: how a text, read in its context, makes a flow recordable, and how much resistance it meets. 
+You can read my thesis <a href="https://andreaskoul.github.io/my-website/thesis.html">here</a>.
+</p>
+<p class="h">
+The three areas below extend this from single texts to narratives, to the agents who act on them, and to the feedback between the surface and productive forces.
+
+</p>
   </section>
   <section class="now">
-    <div><h3>working on</h3><p class="ph">[Placeholder: current projects and roles.]</p></div>
-    <div><h3>studying</h3><p class="ph">[Placeholder: what you are studying now.]</p></div>
-    <div><h3>researching, and why</h3><p class="ph">[Placeholder: your research questions and the reasons behind them.]</p></div>
+    <div><h3>Narrative Representation and Analysis</h3><p class="h">An event matters through the region of representational space it occupies not through its content alone. By means of deconstruction and reconstruction one can decompose a news event into the flows it inscribes (which firms, sectors, actors it touches and how ambiguously) and re-embed it in its market (social, geopolitical) context to follow its trajectory over time. (Theoretical framework, representation learning, narrative2manifold, manifold time-series)
+</p></div>
+    <div><h3>Belief modelling and agent decision making</h3><p class="h">Agents don’t observe the actual events so their beliefs are formed on the surface. I am interested in the mechanism behind updating beliefs given the PIL landscape and on agent-based models for collective belief formation (trends emergence). Under the circumstances of heterogeneous readers and difference in interpretive ability how decisions are made. 
+</p></div>
+    <div><h3>AI Doom Loops</h3><p class="h">A loop in our context is reflexivity, from the surface onto the productive forces and back to the surface. In recent years AI trained on the PIL increasingly substitutes human output, while its output is recorded back into the PIL. My hypothesis is that the new surface undervalues human work because cheap and abundant AI output pulls down the recorded value of comparable human work (appropriation), while workers use the same tools to produce lower-quality AI-generated work, which degrades the recordings further. The loop refeeds itself with training data that is increasingly its own output (cf. model collapse, Shumailov et al., Nature, 2024). I would like to measure the empirical signs of that degradation or possible homogenisation in the PIL over time.</p></div>
   </section>
   <section>
     <h2>narrative landscape</h2>
@@ -62,28 +84,28 @@ body{font-family:"Times New Roman",Times,serif}
       <div class="scroll">
       <svg viewBox="0 0 960 300" role="img" aria-label="Two newswires feed a daily collection into a thirteen-week archive; an embedding model turns each article into a vector representation in latent space; the representations are clustered into narratives whose trajectories and events are tracked, with a language model and a memory of past narratives; the result is shown on the Narratives page.">
         <defs>
-          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
         </defs>
-        <rect class="ext" x="400" y="14" width="160" height="48"/><text class="t" x="480" y="35" text-anchor="middle">Embedding model</text><text class="s" x="480" y="52" text-anchor="middle">text to vector</text>
-        <rect class="ext" x="590" y="14" width="160" height="48"/><text class="t" x="670" y="35" text-anchor="middle">Language model</text><text class="s" x="670" y="52" text-anchor="middle">names, summaries</text>
-        <line class="ln" x1="480" y1="62" x2="480" y2="110" marker-end="url(#a1)"/><text class="lab" x="472" y="92" text-anchor="end">vectors</text>
-        <line class="ln" x1="670" y1="64" x2="670" y2="110" marker-start="url(#a1)" marker-end="url(#a1)"/><text class="lab" x="678" y="92">names, verdicts</text>
+        <rect class="ext" x="400" y="14" width="160" height="48"></rect><text class="t" x="480" y="35" text-anchor="middle">Embedding model</text><text class="s" x="480" y="52" text-anchor="middle">text to vector</text>
+        <rect class="ext" x="590" y="14" width="160" height="48"></rect><text class="t" x="670" y="35" text-anchor="middle">Language model</text><text class="s" x="670" y="52" text-anchor="middle">names, summaries</text>
+        <line class="ln" x1="480" y1="62" x2="480" y2="110" marker-end="url(#a1)"></line><text class="lab" x="472" y="92" text-anchor="end">vectors</text>
+        <line class="ln" x1="670" y1="64" x2="670" y2="110" marker-start="url(#a1)" marker-end="url(#a1)"></line><text class="lab" x="678" y="92">names, verdicts</text>
 
-        <rect class="ext" x="20" y="112" width="160" height="70"/><text class="t" x="100" y="138" text-anchor="middle">Two newswires</text><text class="s" x="100" y="157" text-anchor="middle">headline + short summary</text><text class="s" x="100" y="172" text-anchor="middle">for 20 companies</text>
-        <rect class="box" x="210" y="112" width="160" height="70"/><text class="t" x="290" y="138" text-anchor="middle">Collect</text><text class="s" x="290" y="157" text-anchor="middle">new articles since yesterday,</text><text class="s" x="290" y="172" text-anchor="middle">cleaned up</text>
-        <rect class="box" x="400" y="112" width="160" height="70"/><text class="t" x="480" y="138" text-anchor="middle">Represent</text><text class="s" x="480" y="157" text-anchor="middle">each article becomes a</text><text class="s" x="480" y="172" text-anchor="middle">point in latent space</text>
-        <rect class="box" x="590" y="112" width="160" height="70"/><text class="t" x="670" y="138" text-anchor="middle">Cluster and track</text><text class="s" x="670" y="157" text-anchor="middle">narratives, their trajectories</text><text class="s" x="670" y="172" text-anchor="middle">and the events inside them</text>
-        <rect class="box" x="780" y="112" width="160" height="70"/><text class="t" x="860" y="138" text-anchor="middle">Show</text><text class="s" x="860" y="157" text-anchor="middle">the Narratives page:</text><text class="s" x="860" y="172" text-anchor="middle">map, events, stories</text>
-        <line class="ln" x1="180" y1="147" x2="208" y2="147" marker-end="url(#a1)"/>
-        <line class="ln" x1="370" y1="147" x2="398" y2="147" marker-end="url(#a1)"/>
-        <line class="ln" x1="560" y1="147" x2="588" y2="147" marker-end="url(#a1)"/>
-        <line class="ln" x1="750" y1="147" x2="778" y2="147" marker-end="url(#a1)"/>
+        <rect class="ext" x="20" y="112" width="160" height="70"></rect><text class="t" x="100" y="138" text-anchor="middle">Two newswires</text><text class="s" x="100" y="157" text-anchor="middle">headline + short summary</text><text class="s" x="100" y="172" text-anchor="middle">for 20 companies</text>
+        <rect class="box" x="210" y="112" width="160" height="70"></rect><text class="t" x="290" y="138" text-anchor="middle">Collect</text><text class="s" x="290" y="157" text-anchor="middle">new articles since yesterday,</text><text class="s" x="290" y="172" text-anchor="middle">cleaned up</text>
+        <rect class="box" x="400" y="112" width="160" height="70"></rect><text class="t" x="480" y="138" text-anchor="middle">Represent</text><text class="s" x="480" y="157" text-anchor="middle">each article becomes a</text><text class="s" x="480" y="172" text-anchor="middle">point in latent space</text>
+        <rect class="box" x="590" y="112" width="160" height="70"></rect><text class="t" x="670" y="138" text-anchor="middle">Cluster and track</text><text class="s" x="670" y="157" text-anchor="middle">narratives, their trajectories</text><text class="s" x="670" y="172" text-anchor="middle">and the events inside them</text>
+        <rect class="box" x="780" y="112" width="160" height="70"></rect><text class="t" x="860" y="138" text-anchor="middle">Show</text><text class="s" x="860" y="157" text-anchor="middle">the Narratives page:</text><text class="s" x="860" y="172" text-anchor="middle">map, events, stories</text>
+        <line class="ln" x1="180" y1="147" x2="208" y2="147" marker-end="url(#a1)"></line>
+        <line class="ln" x1="370" y1="147" x2="398" y2="147" marker-end="url(#a1)"></line>
+        <line class="ln" x1="560" y1="147" x2="588" y2="147" marker-end="url(#a1)"></line>
+        <line class="ln" x1="750" y1="147" x2="778" y2="147" marker-end="url(#a1)"></line>
 
-        <rect class="store" x="210" y="236" width="160" height="54"/><text class="t" x="290" y="258" text-anchor="middle">Archive</text><text class="s" x="290" y="277" text-anchor="middle">the last 13 weeks of articles</text>
-        <rect class="store" x="590" y="236" width="160" height="54"/><text class="t" x="670" y="258" text-anchor="middle">Memory</text><text class="s" x="670" y="277" text-anchor="middle">narratives known so far</text>
-        <line class="ln" x1="260" y1="182" x2="260" y2="234" marker-end="url(#a1)"/><text class="lab" x="252" y="213" text-anchor="end">adds</text>
-        <line class="ln" x1="350" y1="235" x2="428" y2="184" marker-end="url(#a1)"/><text class="lab" x="398" y="222">all 13 weeks</text>
-        <line class="ln" x1="670" y1="184" x2="670" y2="234" marker-start="url(#a1)" marker-end="url(#a1)"/><text class="lab" x="678" y="213">recalls, updates</text>
+        <rect class="store" x="210" y="236" width="160" height="54"></rect><text class="t" x="290" y="258" text-anchor="middle">Archive</text><text class="s" x="290" y="277" text-anchor="middle">the last 13 weeks of articles</text>
+        <rect class="store" x="590" y="236" width="160" height="54"></rect><text class="t" x="670" y="258" text-anchor="middle">Memory</text><text class="s" x="670" y="277" text-anchor="middle">narratives known so far</text>
+        <line class="ln" x1="260" y1="182" x2="260" y2="234" marker-end="url(#a1)"></line><text class="lab" x="252" y="213" text-anchor="end">adds</text>
+        <line class="ln" x1="350" y1="235" x2="428" y2="184" marker-end="url(#a1)"></line><text class="lab" x="398" y="222">all 13 weeks</text>
+        <line class="ln" x1="670" y1="184" x2="670" y2="234" marker-start="url(#a1)" marker-end="url(#a1)"></line><text class="lab" x="678" y="213">recalls, updates</text>
       </svg>
       </div>
     </figure>
