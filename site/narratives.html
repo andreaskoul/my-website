@@ -17,8 +17,8 @@ body{margin:0;background:#fff;color:var(--ink);font-family:"Times New Roman",Tim
 header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px}
 h1{font-size:34px;font-weight:bold;margin:0}
 header h1{min-width:0;max-width:100%}
-.pick{position:relative;display:inline-block;max-width:100%}   /* the company picker is the page title; its list opens right under the name */
-.pick button{all:unset;box-sizing:border-box;cursor:pointer;max-width:100%;padding-right:24px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 3px center}   /* "Narratives (TICKER)": only the ticker opens the company list */
+.pick{position:relative;display:inline-block;max-width:100%}   /* the company picker sits in the "current landscape" title; its list opens right under the ticker */
+.pick button{all:unset;box-sizing:border-box;cursor:pointer;max-width:100%;padding-right:20px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 3px center}   /* "current landscape (TICKER)": only the ticker opens the company list */
 .pick button:hover,.pick button[aria-expanded="true"]{color:var(--red)}
 .pick button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .pick ul{position:absolute;z-index:20;top:100%;left:0;margin:2px 0 0;padding:4px 0;list-style:none;min-width:100%;width:max-content;max-height:60vh;overflow-y:auto;background:#fff;border:1px solid var(--ink);font-size:17px;font-weight:normal}
@@ -28,6 +28,7 @@ header h1{min-width:0;max-width:100%}
 .pick li .mono{margin-left:6px}
 @media (max-width:520px){h1,#method h2{font-size:26px}}
 select{font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1px solid var(--ink);padding:3px 6px}
+.intro{margin:12px 0 0;max-width:72ch}   /* short description under the page title */
 .meta{font-size:14px;margin:8px 0 0}
 .mono{font-family:monospace;font-size:.86em}
 .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;margin-top:22px;align-items:start}
@@ -76,7 +77,7 @@ ol.tl .evs-wk span{color:var(--red)}
 .duo{display:grid;grid-template-columns:minmax(0,1fr);gap:30px;margin-top:22px;align-items:start}
 @media (min-width:1100px){   /* wide screens: the landscape and its events side by side, the pair (and the headers above) wider than the text column */
   .duo{grid-template-columns:minmax(0,2.7fr) minmax(300px,1fr);grid-template-rows:auto auto auto;gap:0 32px}
-  .duo,header,.meta,#top,#method{margin-inline:calc(50% - min(760px, 50vw - 30px))}
+  .duo,header,.intro,.meta,#top,#method{margin-inline:calc(50% - min(760px, 50vw - 30px))}
   #land,#evcol{display:grid;grid-row:1 / 4;grid-template-rows:subgrid}   /* shared rows: titles, then the map and the events between the same two rules */
   #land h2,#evcol h2{margin:0 0 8px}
   .site{max-width:min(1520px, 100vw - 60px)}
@@ -118,12 +119,13 @@ ol.tl .evs-wk span{color:var(--red)}
 <div class="site"><span class="me">Andreas (Apollo) Koulopoulos</span><nav aria-label="Site"><a href="index.html">home</a><a href="cv.html">cv</a><a href="thesis.html">thesis</a><a href="narratives.html" aria-current="page">narrative landscape</a></nav></div>
 <div class="wrap">
   <header>
-    <h1>narratives <span class="paren">(</span><span class="pick"><button id="pick" aria-haspopup="listbox" aria-expanded="false" aria-label="Choose a company"></button><ul id="picklist" role="listbox" aria-label="Companies" hidden></ul></span><span class="paren">)</span></h1>
+    <h1>narratives</h1>
   </header>
+  <p class="intro" id="intro">Write a short description of the narrative landscape here.</p>
   <p class="meta" id="meta">Loading…</p>
   <div class="duo">
   <section id="land">
-    <h2>current landscape</h2>
+    <h2>current landscape <span class="paren">(</span><span class="pick"><button id="pick" aria-haspopup="listbox" aria-expanded="false" aria-label="Choose a company"></button><ul id="picklist" role="listbox" aria-label="Companies" hidden></ul></span><span class="paren">)</span></h2>
     <div class="mw" id="mw"><svg class="map" id="map" width="100%" role="img" aria-label="Map of the company's news stories"></svg><div class="mtip" id="mtip" hidden></div></div>
   </section>
   <section id="evcol">
