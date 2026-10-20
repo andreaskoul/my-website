@@ -48,6 +48,7 @@ jobs:
           restore-keys: emb-
 
       - name: Fetch news
+        if: github.event_name != 'push'      # a page edit only republishes: build reuses the stored news and cached embeddings
         env:
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
@@ -59,7 +60,7 @@ jobs:
           OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}    # repo variable; unset = deepseek/deepseek-v4.1-flash
           EMBED_MODEL: ${{ vars.EMBED_MODEL }}              # repo variable; unset = openrouter:google/gemini-embedding-2
         run: |
-          if [ "${{ inputs.refit }}" = "true" ] || [ "$(date -u +%u)" = "1" ]; then
+          if [ "${{ inputs.refit }}" = "true" ] || { [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%u)" = "1" ]; }; then
             python pipeline/build.py --refit
           else
             python pipeline/build.py

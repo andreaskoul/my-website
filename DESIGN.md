@@ -38,7 +38,9 @@ Site: https://andreaskoul.github.io/my-website/ — repo `andreaskoul/my-website
 (the default: scheduled workflows only run from the default branch).
 
 - Workflow `update`: daily 06:15 UTC; Mondays refit all firms; also on a push to main that changes site/
-  (outside site/data), so page edits and uploads such as site/thesis.pdf go live without waiting. Two jobs: `update` (fetch, build, commit
+  (outside site/data), so page edits and uploads such as site/thesis.pdf go live without waiting: such a
+  push skips the fetch and the Monday refit, and the build reruns on the stored news and cached embeddings
+  (still needed: the maps are not committed, so every deploy must rebuild them). Two jobs: `update` (fetch, build, commit
   data to the branch) and `deploy` (publish `site/` to Pages from the branch tip). Kept apart so a Pages
   problem never stops the data update: the first run on `main` was refused whole by the github-pages
   environment rule, which still named the old branch.
